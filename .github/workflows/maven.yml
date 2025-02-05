@@ -51,6 +51,7 @@ jobs:
       # Copy build artifacts to a staging directory
       - name: Prepare artifacts
         run: |
+          ls -lR ./
           mkdir staging
           cp .env target/exam-scheduler-0.0.1-SNAPSHOT.jar staging
           
