@@ -53,7 +53,7 @@ jobs:
         run: |
           ls -lR target
           mkdir staging
-          cp .env target/doan-0.0.1-SNAPSHOT.jar staging
+          cp .env database.sql target/doan-0.0.1-SNAPSHOT.jar staging
           
       # List target directory
       - name: List target directory
