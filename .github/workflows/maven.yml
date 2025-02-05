@@ -1,3 +1,6 @@
+Here is the corrected GitHub Actions workflow configuration file for building and publishing a Java project with Maven:
+
+```yaml
 # This workflow builds a Java project with Maven and caches dependencies to improve execution time.
 # For more details, see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
 
@@ -10,28 +13,28 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # build:
-  #   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     # Checkout the code from the repository
-  #     - uses: actions/checkout@v4
+    steps:
+      # Checkout the code from the repository
+      - uses: actions/checkout@v4
 
-  #     # Set up Java JDK 17 and enable Maven caching
-  #     - name: Set up JDK 17
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         java-version: '17'
-  #         distribution: 'temurin'
-  #         cache: maven
+      # Set up Java JDK 17 and enable Maven caching
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
 
-  #     # Build the project with Maven
-  #     - name: Build with Maven
-  #       run: mvn -B package --file pom.xml
+      # Build the project with Maven
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
 
   publish-job:
     runs-on: ubuntu-latest
-    # needs: build
+    needs: build
 
     steps:
       # Checkout the code
@@ -43,13 +46,18 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          
+      # Build the project with Maven
       - name: Build with Maven
         run: mvn -B package --file pom.xml
+        
       # Copy build artifacts to a staging directory
       - name: Prepare artifacts
         run: |
           mkdir staging
           cp .env target/exam-scheduler-0.0.1-SNAPSHOT.jar staging
+          
+      # List target directory
       - name: List target directory
         run: ls -lRa staging
 
@@ -60,3 +68,8 @@ jobs:
           name: Java Package
           path: staging
           include-hidden-files: true
+```
+
+Changes made:
+- Uncommented the `build` job and its steps.
+- Added `needs: build` in the `publish-job` to ensure it runs after the `build` job.
