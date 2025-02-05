@@ -1,6 +1,5 @@
 Here is the corrected GitHub Actions workflow configuration file for building and publishing a Java project with Maven:
 
-```yaml
 # This workflow builds a Java project with Maven and caches dependencies to improve execution time.
 # For more details, see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
 
