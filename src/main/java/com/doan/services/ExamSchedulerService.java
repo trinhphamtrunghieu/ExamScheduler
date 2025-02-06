@@ -43,7 +43,7 @@ public class ExamSchedulerService {
 	private int maxExamPerDay = 5;
 	// Time slots of 15 minutes each
 	private List<LocalTime> timeSlots;
-	private final Map<String, List<String>> studentCourseMap = new HashMap<>();
+	private Map<String, List<String>> studentCourseMap = new HashMap<>();
 
 	private List<LocalTime> generateTimeSlots(int startHour) {
 		List<LocalTime> res = new ArrayList<>();
@@ -62,7 +62,7 @@ public class ExamSchedulerService {
 		List<Dang_Ky> registrations = dangKyRepository.findDangKyByMaMonHocIn(options.getSelectedSubjects());
 		System.out.println("Total course: " + courses.size());
 		// Pre-process student registrations
-		initializeStudentCourseMap(registrations);
+		this.studentCourseMap = initializeStudentCourseMap(registrations);
 
 		// Initialize parameters
 		this.totalDays = ChronoUnit.DAYS.between(LocalDate.parse(options.getDayFrom()),
@@ -111,12 +111,14 @@ public class ExamSchedulerService {
 		return saveAndConvertSchedule(bestSchedule);
 	}
 
-	private void initializeStudentCourseMap(List<Dang_Ky> registrations) {
-		studentCourseMap.clear();
+	private Map<String, List<String>> initializeStudentCourseMap(List<Dang_Ky> registrations) {
+		Map<String, List<String>> res = new HashMap<>();
+		res.clear();
 		for (Dang_Ky reg : registrations) {
-			studentCourseMap.computeIfAbsent(reg.ma_sinh_vien, k -> new ArrayList<>())
+			res.computeIfAbsent(reg.ma_sinh_vien, k -> new ArrayList<>())
 					.add(reg.maMonHoc);
 		}
+		return res;
 	}
 
 	private List<List<Lich_Thi>> generateInitialPopulation(List<Mon_Hoc> courses) {
@@ -175,7 +177,32 @@ public class ExamSchedulerService {
 
 			// If no valid slot found, try to force placement in least conflicting slot
 			if (!scheduled) {
-				// [Previous fallback logic remains the same]
+				LocalDate lastResortDate = dateFrom.plusDays(totalDays - 1);
+
+				// Find the least conflicting time slot
+				Lich_Thi bestExam = null;
+				int minConflicts = Integer.MAX_VALUE;
+
+				for (LocalTime time : timeSlots) {
+					Lich_Thi candidateExam = new Lich_Thi(
+							course.maMonHoc,
+							Date.valueOf(lastResortDate),
+							Time.valueOf(time),
+							course,
+							"Room-" + (schedule.size() + 1)
+					);
+
+					int conflicts = countConflicts(candidateExam, schedule);
+					if (conflicts < minConflicts) {
+						minConflicts = conflicts;
+						bestExam = candidateExam;
+					}
+				}
+
+				if (bestExam != null) {
+					schedule.add(bestExam);
+					unscheduledCourses.remove(0);
+				}
 			}
 		}
 
@@ -256,29 +283,58 @@ public class ExamSchedulerService {
 		int fitness = 1000;
 
 		if (!validateSchedule(schedule, monHocRepository.findAll())) {
-			return 0;  // Invalid schedule gets zero fitness
+			return -1;  // Invalid schedule gets zero fitness
 		}
 
 		Map<String, Map<Time, Integer>> timeSlotCounts = new HashMap<>();
-		Map<String, Integer> dailyExamCount = new HashMap<>();
 		Set<String> conflictPairs = new HashSet<>();
 
 		if (schedule.size() != totalCourse) return 0;
 
 		// Count exams per time slot
-		for (Lich_Thi exam : schedule) {
-			String dateKey = exam.getNgay_thi().toString();
-			timeSlotCounts.computeIfAbsent(dateKey, k -> new HashMap<>())
-					.merge(exam.getGio_thi(), 1, Integer::sum);
+//		// Check time slot violations
+		for (int i = 0; i < schedule.size(); i++) {
+			Lich_Thi exam1 = schedule.get(i);
+			LocalTime exam1EndTime = exam1.getGio_thi().toLocalTime()
+					.plusMinutes(exam1.getMonHoc().thoi_luong_thi);
 
-			// Regular daily count
-			int currentDayCount = dailyExamCount.merge(dateKey, 1, Integer::sum);
-			if (currentDayCount > maxExamPerDay) {
-				fitness -= 150 * (currentDayCount - maxExamPerDay);
+			// Penalty for end time violations
+			if (exam1EndTime.isAfter(LocalTime.of(endHour, 0))) {
+				fitness -= 100;
+			}
+
+			// Count exams per day and apply penalty for exceeding maxExamPerDay
+			String dateKey = exam1.getNgay_thi().toString();
+			timeSlotCounts.computeIfAbsent(dateKey, k -> new HashMap<>())
+					.merge(exam1.getGio_thi(), 1, Integer::sum);
+
+
+			// Check for conflicts with other exams
+			for (int j = i + 1; j < schedule.size(); j++) {
+				Lich_Thi exam2 = schedule.get(j);
+
+				if (exam1.getNgay_thi().equals(exam2.getNgay_thi())) {
+					Lich_Thi first_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam1 : exam2;
+					Lich_Thi second_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam2 : exam1;
+					LocalTime first_exam_end = first_exam.getGio_thi().toLocalTime().plusMinutes(first_exam.getMonHoc().thoi_luong_thi);
+					LocalTime second_exam_start = second_exam.getGio_thi().toLocalTime();
+
+					if (first_exam_end.isAfter(second_exam_start)) {
+						// Check for student conflicts
+						for (List<String> studentCourses : studentCourseMap.values()) {
+							if (studentCourses.contains(exam1.getMa_mon_hoc()) &&
+									studentCourses.contains(exam2.getMa_mon_hoc())) {
+								String conflictKey = exam1.getMa_mon_hoc() + "-" + exam2.getMa_mon_hoc();
+								if (conflictPairs.add(conflictKey)) {
+									fitness -= 200; // Severe penalty for student conflicts
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
-		// Check time slot violations
 		for (Map<Time, Integer> slotCounts : timeSlotCounts.values()) {
 			for (int count : slotCounts.values()) {
 				if (count > maxExamPerDay) {
@@ -286,9 +342,6 @@ public class ExamSchedulerService {
 				}
 			}
 		}
-
-		// Rest of the existing fitness calculation code...
-		// [Previous code for checking conflicts, end time violations, etc.]
 
 		return Math.max(0, fitness);
 	}
@@ -416,18 +469,23 @@ public class ExamSchedulerService {
 		return Arrays.asList(child1, child2);
 	}
 
-	private boolean validateSchedule(List<Lich_Thi> schedule, List<Mon_Hoc> allCourses) {
-		// Check if all courses are present
-		Set<String> scheduledCourses = schedule.stream()
-				.map(Lich_Thi::getMa_mon_hoc)
-				.collect(Collectors.toSet());
-
+	// Check if all course are present
+	private List<String> checkNotExists(List<Lich_Thi> schedule, List<Mon_Hoc> allCourses) {
 		Set<String> requiredCourses = allCourses.stream()
 				.map(c -> c.maMonHoc)
 				.collect(Collectors.toSet());
 
-		// Check for duplicates
-		Set<String> duplicates = schedule.stream()
+		Set<String> scheduledCourses = schedule.stream()
+				.map(Lich_Thi::getMa_mon_hoc)
+				.collect(Collectors.toSet());
+
+		return requiredCourses.stream()
+				.filter(course -> !scheduledCourses.contains(course))
+				.collect(Collectors.toList());
+	}
+
+	private Set<String> checkDuplicate(List<Lich_Thi> schedule) {
+		return schedule.stream()
 				.map(Lich_Thi::getMa_mon_hoc)
 				.filter(course -> Collections.frequency(
 						schedule.stream()
@@ -435,20 +493,20 @@ public class ExamSchedulerService {
 								.collect(Collectors.toList()),
 						course) > 1)
 				.collect(Collectors.toSet());
+	}
 
-		boolean hasAllCourses = scheduledCourses.containsAll(requiredCourses);
-		boolean hasNoDuplicates = duplicates.isEmpty();
+	private boolean validateSchedule(List<Lich_Thi> schedule, List<Mon_Hoc> allCourses) {
 
-		if (!hasAllCourses || !hasNoDuplicates) {
+		List<String> notExistsCourse = checkNotExists(schedule, allCourses);
+		Set<String> duplicateCourse = checkDuplicate(schedule);
+
+		if (!notExistsCourse.isEmpty() || !duplicateCourse.isEmpty()) {
 			System.out.println("Schedule validation failed:");
-			System.out.println("Missing courses: " +
-					requiredCourses.stream()
-							.filter(c -> !scheduledCourses.contains(c))
-							.collect(Collectors.toList()));
-			System.out.println("Duplicate courses: " + duplicates);
+			System.out.println("Missing courses: " + notExistsCourse);
+			System.out.println("Duplicate courses: " + duplicateCourse);
 		}
 
-		return hasAllCourses && hasNoDuplicates;
+		return notExistsCourse.isEmpty() && duplicateCourse.isEmpty();
 	}
 	private void ensureAllCoursesPresent(List<Lich_Thi> child, List<Lich_Thi> parent1, List<Lich_Thi> parent2) {
 		Set<String> coursesInChild = child.stream()
@@ -571,6 +629,7 @@ public class ExamSchedulerService {
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
 				// If there's an error or timeout, assign a very low fitness score
 				fitnessScores.add(0);
+				e.printStackTrace();
 				System.err.println("Error collecting fitness score: " + e.getMessage());
 			}
 		}
@@ -598,16 +657,32 @@ public class ExamSchedulerService {
 
 		// Optional: Log the best fitness score found
 		if (bestFitness % 50 == 0) { // Log every 50 points of improvement
-			System.out.printf("Found solution with fitness: %d%n", bestFitness);
+			System.out.printf("Found solution with fitness: %d\n", bestFitness);
 		}
 
 		return bestIndex;
 	}
-	public List<Map.Entry<String, String>> evaluate(List<Lich_Thi_DTO> schedule) {
+	public String evaluate(List<Lich_Thi_DTO> schedule) {
+		StringBuilder result = new StringBuilder();
 		List<Dang_Ky> all_regis = dangKyRepository.findAll();
-		List<Map.Entry<String, String>> conflictList = new ArrayList<>();
+		List<Mon_Hoc> all_course = monHocRepository.findAll();
+		List<Lich_Thi> schedule_org = schedule.stream().map(e -> {
+			return new Lich_Thi(
+					e.getMa_mon_hoc(),
+					e.getNgay_thi(),
+					e.getGio_thi(),
+					monHocRepository.findByMaMonHoc(e.getMa_mon_hoc()),
+					e.getPhong_thi());
+		}).collect(Collectors.toList());
+		List<String> notExistsCourse = checkNotExists(schedule_org, all_course);
+		if (!notExistsCourse.isEmpty()) {
+			result.append("Not exists course: " + notExistsCourse).append("\n");
+		}
+		Set<String> duplicateCourse = checkDuplicate(schedule_org);
+		if (!duplicateCourse.isEmpty()) {
+			result.append("Duplicate course: " + duplicateCourse).append("\n");
+		}
 
-		// Map each student to their registered exams
 		Map<String, List<Lich_Thi_DTO>> studentExamsMap = new HashMap<>();
 		for (Dang_Ky registration : all_regis) {
 			studentExamsMap.putIfAbsent(registration.ma_sinh_vien, new ArrayList<>());
@@ -621,45 +696,34 @@ public class ExamSchedulerService {
 				}
 			}
 		}
+		Map<String, List<String>> sCourseMap = initializeStudentCourseMap(all_regis);
+		Set<String> conflictPairs = new HashSet<>();
+		for (int i = 0; i < schedule.size(); i++) {
+			Lich_Thi_DTO exam1 = schedule.get(i);
+			for (int j = i + 1; j < schedule.size(); j++) {
+				Lich_Thi_DTO exam2 = schedule.get(j);
+				if (exam1.getNgay_thi().equals(exam2.getNgay_thi())) {
+					Lich_Thi_DTO first_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam1 : exam2;
+					Lich_Thi_DTO second_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam2 : exam1;
+					LocalTime first_exam_end = first_exam.getGio_thi().toLocalTime().plusMinutes(first_exam.getThoi_luong_thi());
+					LocalTime second_exam_start = second_exam.getGio_thi().toLocalTime();
 
-		// Check for overlapping exams for each student
-		for (Map.Entry<String, List<Lich_Thi_DTO>> entry : studentExamsMap.entrySet()) {
-			String studentId = entry.getKey();
-			List<Lich_Thi_DTO> studentExams = entry.getValue();
-
-			// Sort exams by date and time
-			studentExams.sort(Comparator.comparing(Lich_Thi_DTO::getNgay_thi)
-					.thenComparing(Lich_Thi_DTO::getGio_thi));
-
-			// Check if the student has any overlapping exams
-			for (int i = 0; i < studentExams.size() - 1; i++) {
-				Lich_Thi_DTO currentExam = studentExams.get(i);
-				Lich_Thi_DTO nextExam = studentExams.get(i + 1);
-
-				// Calculate the end time of the current exam
-				LocalTime nextStartTime = nextExam.getGio_thi().toLocalTime();
-				LocalTime currentEndTime = currentExam.getGio_thi().toLocalTime().plusMinutes(currentExam.getThoi_luong_thi());
-				// Calculate the start time of the next exam
-
-				// Check if two exams overlap (current exam end time > next exam start time)
-				if (currentExam.getNgay_thi().equals(nextExam.getNgay_thi()) && currentEndTime.isAfter(nextStartTime)) {
-					// Log the conflicting exams and student
-					System.out.printf("Conflict detected for student %s: %s (day %s, from %s - to %s) and %s (day %s, from %s - to %s) \n",
-							studentId,
-							currentExam.getTen_mon_hoc(),
-							currentExam.getNgay_thi(),
-							currentExam.getGio_thi().toString(),
-							currentEndTime,
-							nextExam.getTen_mon_hoc(),
-							nextExam.getNgay_thi().toString(),
-							currentExam.getGio_thi().toString(),
-							nextStartTime.toString());
-					conflictList.add(new AbstractMap.SimpleEntry<>(currentExam.getTen_mon_hoc(), nextExam.getTen_mon_hoc()));
+					if (first_exam_end.isAfter(second_exam_start)) {
+						// Check for student conflicts
+						for (List<String> studentCourses : sCourseMap.values()) {
+							if (studentCourses.contains(exam1.getMa_mon_hoc()) &&
+									studentCourses.contains(exam2.getMa_mon_hoc())) {
+								String conflictKey = exam1.getMa_mon_hoc() + "-" + exam2.getMa_mon_hoc();
+								if (conflictPairs.add(conflictKey)) {
+									result.append(String.format("Conflict subject %s with %s\n", exam1.getMa_mon_hoc(), exam2.getMa_mon_hoc()));
+								}
+							}
+						}
+					}
 				}
 			}
 		}
-
-		return conflictList;
+		return result.toString();
 	}
 
 	// Helper method to combine Date (ngay_thi) and Time (gio_thi) into a full Timestamp

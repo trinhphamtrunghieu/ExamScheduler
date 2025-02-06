@@ -26,23 +26,17 @@ public class Lich_Thi_Controller {
 	public ResponseEntity<?> generateSchedule(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
 		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
 			List<Lich_Thi_DTO> result = schedulerService.generateExamSchedule(options);
-			List<Map.Entry<String, String>> conflict_check = schedulerService.evaluate(result);
-			if (!conflict_check.isEmpty()) {
-				System.out.println("Conflict");
-				StringBuilder conflictDetail  = new StringBuilder();
-				conflict_check.forEach(entry -> {
-					conflictDetail.append("Conflict between ")
-							.append(entry.getKey())  // Example: "Exam A"
-							.append(" and ")
-							.append(entry.getValue())  // Example: "Exam B"
-							.append("\n");
-				});
-				return ResponseEntity.status(HttpStatus.CONFLICT)
-						.body(Collections.singletonMap("error", conflictDetail.toString()));
-			} else {
-				System.out.println("No conflict");
-				return ResponseEntity.ok(result);
-			}
+			String conflict_check = schedulerService.evaluate(result);
+			System.out.println(conflict_check);
+			return ResponseEntity.ok(result);
+			//			if (!conflict_check.isEmpty()) {
+//				System.out.println("Conflict");
+//				return ResponseEntity.status(HttpStatus.OK)
+//						.body(Collections.singletonMap("error", conflict_check));
+//			} else {
+//				System.out.println("No conflict");
+//				return ResponseEntity.ok(result);
+//			}
 		} else {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
