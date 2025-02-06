@@ -4,6 +4,7 @@ import com.doan.dto.*;
 import com.doan.repository.Dang_Ky_Repository;
 import com.doan.repository.Lich_Thi_Repository;
 import com.doan.repository.Mon_Hoc_Repository;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -36,39 +37,37 @@ public class ExamSchedulerService {
 	private int populationSize = 200; // Increased population size
 	private double crossoverRate = 0.85;
 	private double mutationRate = 0.15;
-	private int maxGenerations = 1000;
 	private int startHour = 9;
 	private int endHour = 18;
 	private int totalCourse = 100;
-
+	private int maxExamPerDay = 5;
 	// Time slots of 15 minutes each
-	private final List<LocalTime> timeSlots = generateTimeSlots();
-	private Map<String, List<String>> studentCourseMap = new HashMap<>();
+	private List<LocalTime> timeSlots;
+	private final Map<String, List<String>> studentCourseMap = new HashMap<>();
 
-	private List<LocalTime> generateTimeSlots() {
-		List<LocalTime> slots = new ArrayList<>();
+	private List<LocalTime> generateTimeSlots(int startHour) {
+		List<LocalTime> res = new ArrayList<>();
 		LocalTime current = LocalTime.of(startHour, 0);
-		while (!current.isAfter(LocalTime.of(endHour, 0))) {
-			if (!(current.getHour() == 12)) { // Skip lunch hour
-				slots.add(current);
-			}
-			current = current.plusMinutes(15);
+		List<Integer> slots = Arrays.asList(8, 10, 13, 15, 17);
+		for (Integer s : slots) {
+			if (current.getHour() > s) continue;
+			res.add(LocalTime.of(s, 0));
 		}
-		return slots;
+		return res;
 	}
 
 	public List<Lich_Thi_DTO> generateExamSchedule(Lich_Thi_Option options) {
 		System.out.println("Starting enhanced schedule generation");
 		List<Mon_Hoc> courses = monHocRepository.findByMaMonHocIn(options.getSelectedSubjects());
 		List<Dang_Ky> registrations = dangKyRepository.findDangKyByMaMonHocIn(options.getSelectedSubjects());
-
+		System.out.println("Total course: " + courses.size());
 		// Pre-process student registrations
 		initializeStudentCourseMap(registrations);
 
 		// Initialize parameters
 		this.totalDays = ChronoUnit.DAYS.between(LocalDate.parse(options.getDayFrom()),
 				LocalDate.parse(options.getDayTo())) + 1;
-		this.maxGenerations = options.getMaxGenerations();
+		int maxGenerations = options.getMaxGenerations();
 		this.populationSize = options.getPopulationSize();
 		this.crossoverRate = options.getCrossoverRate();
 		this.mutationRate = options.getMutationRate();
@@ -76,9 +75,10 @@ public class ExamSchedulerService {
 		this.endHour = options.getHourToInt();
 		this.dateFrom = LocalDate.parse(options.getDayFrom());
 		this.totalCourse = courses.size();
+		this.timeSlots = generateTimeSlots(this.startHour);
+		this.maxExamPerDay = options.getMaxExamPerDay();
 		List<Lich_Thi> bestSchedule = null;
 		int bestFitness = Integer.MIN_VALUE;
-
 		// Create thread pool
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		List<List<Lich_Thi>> population = generateInitialPopulation(courses);
@@ -100,11 +100,13 @@ public class ExamSchedulerService {
 
 				population = evolvePopulation(population, fitnessScores);
 			}
+			if (bestSchedule != null) {
+				System.out.println(("Total course: " + courses.size()));
+				System.out.println(("Total course in schedule: " + bestSchedule.size()));
+			}
 		} finally {
 			executor.shutdown();
 		}
-		System.out.println(("Total course: " + courses.size()));
-		System.out.println(("Total course in schedule: " + bestSchedule.size()));
 
 		return saveAndConvertSchedule(bestSchedule);
 	}
@@ -128,21 +130,21 @@ public class ExamSchedulerService {
 
 	private List<Lich_Thi> generateConflictAwareSchedule(List<Mon_Hoc> courses) {
 		List<Lich_Thi> schedule = new ArrayList<>();
-		Set<String> scheduledSubjects = new HashSet<>(); // Track scheduled subjects
-		List<Mon_Hoc> shuffledCourses = new ArrayList<>(courses);
-		Collections.shuffle(shuffledCourses);
+		Set<String> scheduledSubjects = new HashSet<>();
+		List<Mon_Hoc> unscheduledCourses = new ArrayList<>(courses);
 
-		// Ensure every course is scheduled at least once
-		for (Mon_Hoc course : shuffledCourses) {
-			boolean validSlotFound = false;
-			int attempts = 0;
+		// Sort courses by duration (descending) to schedule longer exams first
+		unscheduledCourses.sort((a, b) -> Integer.compare(b.thoi_luong_thi, a.thoi_luong_thi));
 
-			while (!validSlotFound && attempts < 100) {
-				long dayOffset = random.nextLong(totalDays);
+		while (!unscheduledCourses.isEmpty()) {
+			Mon_Hoc course = unscheduledCourses.get(0);
+			boolean scheduled = false;
+
+			// Try all possible days and time slots until a valid slot is found
+			for (long dayOffset = 0; dayOffset < totalDays && !scheduled; dayOffset++) {
 				LocalDate examDate = dateFrom.plusDays(dayOffset);
-				LocalTime startTime = getRandomValidTimeSlot(course.thoi_luong_thi);
 
-				if (startTime != null) {
+				for (LocalTime startTime : timeSlots) {
 					Lich_Thi newExam = new Lich_Thi(
 							course.maMonHoc,
 							Date.valueOf(examDate),
@@ -153,36 +155,66 @@ public class ExamSchedulerService {
 
 					if (isValidExamPlacement(newExam, schedule)) {
 						schedule.add(newExam);
-						scheduledSubjects.add(course.maMonHoc); // Mark as scheduled
-						validSlotFound = true;
+						scheduledSubjects.add(course.maMonHoc);
+						unscheduledCourses.remove(0);
+						scheduled = true;
+						break;
 					}
 				}
-				attempts++;
 			}
 
-			// If no valid slot is found, assign a fallback slot
-			if (!validSlotFound) {
-				System.out.println("Warning: Could not find a valid slot for " + course.maMonHoc + ", assigning fallback slot.");
-				LocalDate fallbackDate = dateFrom.plusDays(random.nextLong(totalDays));
-				LocalTime fallbackTime = getRandomValidTimeSlot(course.thoi_luong_thi);
-				if (fallbackTime == null) fallbackTime = timeSlots.get(random.nextInt(timeSlots.size())); // Pick random time if needed
+			// If no valid slot found, try to create a new time slot
+			if (!scheduled) {
+				LocalDate lastResortDate = dateFrom.plusDays(totalDays - 1);
 
-				Lich_Thi fallbackExam = new Lich_Thi(
-						course.maMonHoc,
-						Date.valueOf(fallbackDate),
-						Time.valueOf(fallbackTime),
-						course,
-						"Room-" + (schedule.size() + 1)
-				);
-				schedule.add(fallbackExam);
-				scheduledSubjects.add(course.maMonHoc);
+				// Find the least conflicting time slot
+				Lich_Thi bestExam = null;
+				int minConflicts = Integer.MAX_VALUE;
+
+				for (LocalTime time : timeSlots) {
+					Lich_Thi candidateExam = new Lich_Thi(
+							course.maMonHoc,
+							Date.valueOf(lastResortDate),
+							Time.valueOf(time),
+							course,
+							"Room-" + (schedule.size() + 1)
+					);
+
+					int conflicts = countConflicts(candidateExam, schedule);
+					if (conflicts < minConflicts) {
+						minConflicts = conflicts;
+						bestExam = candidateExam;
+					}
+				}
+
+				if (bestExam != null) {
+					schedule.add(bestExam);
+					scheduledSubjects.add(course.maMonHoc);
+					unscheduledCourses.remove(0);
+				}
 			}
 		}
 
-		System.out.println("Final schedule size: " + schedule.size());
 		return schedule;
 	}
 
+	private int countConflicts(Lich_Thi exam, List<Lich_Thi> schedule) {
+		int conflicts = 0;
+		LocalTime examStart = exam.getGio_thi().toLocalTime();
+		LocalTime examEnd = examStart.plusMinutes(exam.getMonHoc().thoi_luong_thi);
+
+		for (Lich_Thi existing : schedule) {
+			if (existing.getNgay_thi().equals(exam.getNgay_thi())) {
+				LocalTime existingStart = existing.getGio_thi().toLocalTime();
+				LocalTime existingEnd = existingStart.plusMinutes(existing.getMonHoc().thoi_luong_thi);
+
+				if (!(examEnd.isBefore(existingStart) || examStart.isAfter(existingEnd))) {
+					conflicts++;
+				}
+			}
+		}
+		return conflicts;
+	}
 	private LocalTime getRandomValidTimeSlot(int duration) {
 		List<LocalTime> validSlots = new ArrayList<>();
 
@@ -233,9 +265,15 @@ public class ExamSchedulerService {
 
 	private int calculateFitness(List<Lich_Thi> schedule) {
 		int fitness = 1000;
+		System.out.println("Schedule size: " + schedule.size());
+		System.out.println("Total course: " + totalCourse);
+		if (!validateSchedule(schedule, monHocRepository.findAll())) {
+			return 0;  // Invalid schedule gets zero fitness
+		}
 		Map<String, Integer> dailyExamCount = new HashMap<>();
 		Set<String> conflictPairs = new HashSet<>();
 		if (schedule.size() != totalCourse) return 0;
+
 		for (int i = 0; i < schedule.size(); i++) {
 			Lich_Thi exam1 = schedule.get(i);
 			LocalTime exam1EndTime = exam1.getGio_thi().toLocalTime()
@@ -246,18 +284,24 @@ public class ExamSchedulerService {
 				fitness -= 100;
 			}
 
-			// Count exams per day
+			// Count exams per day and apply penalty for exceeding maxExamPerDay
 			String dateKey = exam1.getNgay_thi().toString();
-			dailyExamCount.merge(dateKey, 1, Integer::sum);
+			int currentDayCount = dailyExamCount.merge(dateKey, 1, Integer::sum);
+			if (currentDayCount > maxExamPerDay) {
+				fitness -= 150 * (currentDayCount - maxExamPerDay); // Severe penalty for exceeding limit
+			}
 
 			// Check for conflicts with other exams
 			for (int j = i + 1; j < schedule.size(); j++) {
 				Lich_Thi exam2 = schedule.get(j);
 
 				if (exam1.getNgay_thi().equals(exam2.getNgay_thi())) {
-					LocalTime exam2StartTime = exam2.getGio_thi().toLocalTime();
+					Lich_Thi first_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam1 : exam2;
+					Lich_Thi second_exam = exam1.getGio_thi().before(exam2.getGio_thi()) ? exam2 : exam1;
+					LocalTime first_exam_end = first_exam.getGio_thi().toLocalTime().plusMinutes(first_exam.getMonHoc().thoi_luong_thi);
+					LocalTime second_exam_start = second_exam.getGio_thi().toLocalTime();
 
-					if (exam1EndTime.isAfter(exam2StartTime)) {
+					if (!(first_exam_end.isAfter(second_exam_start))) {
 						// Check for student conflicts
 						for (List<String> studentCourses : studentCourseMap.values()) {
 							if (studentCourses.contains(exam1.getMa_mon_hoc()) &&
@@ -332,42 +376,112 @@ public class ExamSchedulerService {
 			return Arrays.asList(new ArrayList<>(parent1), new ArrayList<>(parent2));
 		}
 
-		int size = Math.min(parent1.size(), parent2.size()); // Ensure valid index range
+		Map<String, Lich_Thi> courseMap1 = new HashMap<>();
+		Map<String, Lich_Thi> courseMap2 = new HashMap<>();
 
-		List<Lich_Thi> child1 = new ArrayList<>(Collections.nCopies(size, null));
-		List<Lich_Thi> child2 = new ArrayList<>(Collections.nCopies(size, null));
+		// Create maps for quick lookup
+		parent1.forEach(exam -> courseMap1.put(exam.getMa_mon_hoc(), exam));
+		parent2.forEach(exam -> courseMap2.put(exam.getMa_mon_hoc(), exam));
 
-		int crossoverPoint1 = random.nextInt(size) + 1;
-		int crossoverPoint2 = random.nextInt(size) + 1;
-		int start = Math.min(crossoverPoint1, crossoverPoint2);
-		int end = Math.max(crossoverPoint1, crossoverPoint2);
+		List<Lich_Thi> child1 = new ArrayList<>();
+		List<Lich_Thi> child2 = new ArrayList<>();
 
-		Set<String> scheduledSubjectsChild1 = new HashSet<>();
-		Set<String> scheduledSubjectsChild2 = new HashSet<>();
+		Set<String> processed1 = new HashSet<>();
+		Set<String> processed2 = new HashSet<>();
 
-		// Copy crossover segment while ensuring uniqueness
-		for (int i = start; i <= end; i++) {
-			if (i < parent1.size() && !scheduledSubjectsChild1.contains(parent1.get(i).getMa_mon_hoc())) {
-				child1.set(i, new Lich_Thi(parent1.get(i)));
-				scheduledSubjectsChild1.add(parent1.get(i).getMa_mon_hoc());
-			}
-			if (i < parent2.size() && !scheduledSubjectsChild2.contains(parent2.get(i).getMa_mon_hoc())) {
-				child2.set(i, new Lich_Thi(parent2.get(i)));
-				scheduledSubjectsChild2.add(parent2.get(i).getMa_mon_hoc());
+		// Crossover point
+		int crossPoint = random.nextInt(parent1.size());
+
+		// First part from parent 1
+		for (int i = 0; i < crossPoint; i++) {
+			Lich_Thi exam1 = parent1.get(i);
+			if (!processed1.contains(exam1.getMa_mon_hoc())) {
+				child1.add(new Lich_Thi(exam1));
+				processed1.add(exam1.getMa_mon_hoc());
 			}
 		}
 
-		// Fill remaining slots ensuring each subject appears exactly once
-		fillRemainingUniquePositions(parent2, child1, scheduledSubjectsChild1, size);
-		fillRemainingUniquePositions(parent1, child2, scheduledSubjectsChild2, size);
+		// Second part from parent 2
+		for (int i = crossPoint; i < parent2.size(); i++) {
+			Lich_Thi exam2 = parent2.get(i);
+			if (!processed1.contains(exam2.getMa_mon_hoc())) {
+				child1.add(new Lich_Thi(exam2));
+				processed1.add(exam2.getMa_mon_hoc());
+			}
+		}
 
-		// Ensure all courses are present in the children
-		ensureAllCoursesPresent(child1, parent1, parent2);
-		ensureAllCoursesPresent(child2, parent1, parent2);
+		// Add missing courses to child1
+		courseMap1.forEach((courseId, exam) -> {
+			if (!processed1.contains(courseId)) {
+				child1.add(new Lich_Thi(exam));
+				processed1.add(courseId);
+			}
+		});
+
+		// Repeat for child2 with reversed parents
+		// First part from parent 2
+		for (int i = 0; i < crossPoint; i++) {
+			Lich_Thi exam2 = parent2.get(i);
+			if (!processed2.contains(exam2.getMa_mon_hoc())) {
+				child2.add(new Lich_Thi(exam2));
+				processed2.add(exam2.getMa_mon_hoc());
+			}
+		}
+
+		// Second part from parent 1
+		for (int i = crossPoint; i < parent1.size(); i++) {
+			Lich_Thi exam1 = parent1.get(i);
+			if (!processed2.contains(exam1.getMa_mon_hoc())) {
+				child2.add(new Lich_Thi(exam1));
+				processed2.add(exam1.getMa_mon_hoc());
+			}
+		}
+
+		// Add missing courses to child2
+		courseMap2.forEach((courseId, exam) -> {
+			if (!processed2.contains(courseId)) {
+				child2.add(new Lich_Thi(exam));
+				processed2.add(courseId);
+			}
+		});
 
 		return Arrays.asList(child1, child2);
 	}
 
+	private boolean validateSchedule(List<Lich_Thi> schedule, List<Mon_Hoc> allCourses) {
+		// Check if all courses are present
+		Set<String> scheduledCourses = schedule.stream()
+				.map(Lich_Thi::getMa_mon_hoc)
+				.collect(Collectors.toSet());
+
+		Set<String> requiredCourses = allCourses.stream()
+				.map(c -> c.maMonHoc)
+				.collect(Collectors.toSet());
+
+		// Check for duplicates
+		Set<String> duplicates = schedule.stream()
+				.map(Lich_Thi::getMa_mon_hoc)
+				.filter(course -> Collections.frequency(
+						schedule.stream()
+								.map(Lich_Thi::getMa_mon_hoc)
+								.collect(Collectors.toList()),
+						course) > 1)
+				.collect(Collectors.toSet());
+
+		boolean hasAllCourses = scheduledCourses.containsAll(requiredCourses);
+		boolean hasNoDuplicates = duplicates.isEmpty();
+
+		if (!hasAllCourses || !hasNoDuplicates) {
+			System.out.println("Schedule validation failed:");
+			System.out.println("Missing courses: " +
+					requiredCourses.stream()
+							.filter(c -> !scheduledCourses.contains(c))
+							.collect(Collectors.toList()));
+			System.out.println("Duplicate courses: " + duplicates);
+		}
+
+		return hasAllCourses && hasNoDuplicates;
+	}
 	private void ensureAllCoursesPresent(List<Lich_Thi> child, List<Lich_Thi> parent1, List<Lich_Thi> parent2) {
 		Set<String> coursesInChild = child.stream()
 				.filter(Objects::nonNull)
@@ -399,35 +513,6 @@ public class ExamSchedulerService {
 						child.set(index, new Lich_Thi(missingExam));
 					}
 				}
-			}
-		}
-	}
-
-	private void fillRemainingUniquePositions(List<Lich_Thi> parent, List<Lich_Thi> child, Set<String> scheduledSubjects, int maxSize) {
-		int index = 0;
-		for (Lich_Thi exam : parent) {
-			if (!scheduledSubjects.contains(exam.getMa_mon_hoc())) {
-				// Find the first available empty spot
-				while (index < maxSize && (child.get(index) != null)) {
-					index++;
-				}
-				if (index < maxSize) {
-					child.set(index, new Lich_Thi(exam));
-					scheduledSubjects.add(exam.getMa_mon_hoc());
-				}
-			}
-		}
-	}
-
-	private void fillRemainingPositions(List<Lich_Thi> parent, List<Lich_Thi> child,
-	                                    int start, int end) {
-		int childPos = 0;
-		for (int i = 0; i < parent.size(); i++) {
-			if (childPos == start) {
-				childPos = end + 1;
-			}
-			if (childPos < child.size() && child.get(childPos) == null) {
-				child.set(childPos++, new Lich_Thi(parent.get(i)));
 			}
 		}
 	}
@@ -470,14 +555,14 @@ public class ExamSchedulerService {
 					}
 					break;
 
-				case 2: // Swap with another exam
-					int swapIndex = random.nextInt(schedule.size());
-					if (swapIndex != index) {
-						Lich_Thi temp = mutated.get(swapIndex);
-						mutated.set(swapIndex, mutated.get(index));
-						mutated.set(index, temp);
-					}
-					break;
+//				case 2: // Swap with another exam
+//					int swapIndex = random.nextInt(schedule.size());
+//					if (swapIndex != index) {
+//						Lich_Thi temp = mutated.get(swapIndex);
+//						mutated.set(swapIndex, mutated.get(index));
+//						mutated.set(index, temp);
+//					}
+//					break;
 			}
 
 			mutated.set(index, exam);
@@ -588,9 +673,9 @@ public class ExamSchedulerService {
 					System.out.printf("Conflict detected for student %s: %s (day %s, from %s - to %s) and %s (day %s, from %s - to %s) \n",
 							studentId,
 							currentExam.getTen_mon_hoc(),
-							currentExam.getNgay_thi().toString(),
+							currentExam.getNgay_thi(),
 							currentExam.getGio_thi().toString(),
-							currentEndTime.toString(),
+							currentEndTime,
 							nextExam.getTen_mon_hoc(),
 							nextExam.getNgay_thi().toString(),
 							currentExam.getGio_thi().toString(),
@@ -601,13 +686,6 @@ public class ExamSchedulerService {
 		}
 
 		return conflictList;
-	}
-
-	// Helper method to calculate the end time of the exam by adding the duration
-	private Timestamp calculateEndTime(Lich_Thi_DTO exam) {
-		Timestamp startTime = combineDateAndTime(exam.getNgay_thi(), exam.getGio_thi());
-		long durationInMillis = exam.getThoi_luong_thi() * 60 * 1000;  // Convert duration from minutes to milliseconds
-		return new Timestamp(startTime.getTime() + durationInMillis);  // Add duration to start time
 	}
 
 	// Helper method to combine Date (ngay_thi) and Time (gio_thi) into a full Timestamp
@@ -621,6 +699,7 @@ public class ExamSchedulerService {
 	}
 
 	// Enhanced version with statistics tracking
+	@Getter
 	private static class PopulationStatistics {
 		private int bestFitness;
 		private int worstFitness;
@@ -648,10 +727,6 @@ public class ExamSchedulerService {
 			this.averageFitness = (double) sum / fitnessScores.size();
 		}
 
-		public int getBestIndex() {
-			return bestIndex;
-		}
-
 		public void logStatistics(int generation) {
 			System.out.printf("Generation %d stats:%n", generation);
 			System.out.printf("Best Fitness: %d%n", bestFitness);
@@ -661,17 +736,6 @@ public class ExamSchedulerService {
 		}
 	}
 
-	// Enhanced findBestSolution with statistics
-	private int findBestSolution(List<Integer> fitnessScores, int generation) {
-		PopulationStatistics stats = new PopulationStatistics(fitnessScores);
-
-		// Log statistics every N generations or when significant improvement is found
-		if (generation % 10 == 0 || stats.bestFitness >= 900) {
-			stats.logStatistics(generation);
-		}
-
-		return stats.getBestIndex();
-	}
 	// Constants for log levels
 	private enum LogLevel {
 		BASIC,    // Basic information
@@ -828,10 +892,4 @@ public class ExamSchedulerService {
 	public void setLogLevel(LogLevel level) {
 		this.currentLogLevel = level;
 	}
-
-	// Utility method to set log interval
-	public void setLogInterval(int interval) {
-		this.logInterval = interval;
-	}
-
 }

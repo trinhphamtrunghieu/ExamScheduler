@@ -21,6 +21,7 @@ function Generate() {
   const [mutationRate, setMutationRate] = useState(0.1);
   const [maxGenerations, setMaxGenerations] = useState(500);
   const [validationError, setValidationError] = useState("");
+  const [maxExamPerDay, setMaxExamPerDay] = useState(5);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,6 +113,7 @@ function Generate() {
       crossoverRate,
       mutationRate,
       maxGenerations,
+      maxExamPerDay,
     };
 
     fetchScheduleWithRetry(options)
@@ -201,6 +203,9 @@ function Generate() {
             <input type="time" value={hourFrom} onChange={(e) => setHourFrom(e.target.value)} />
             <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
 
+            <label>Max exams per day:</label>
+            <input type="number" onChange={(e) => setMaxExamPerDay(e.target.value)} />
+
             <label>Population Size:</label>
             <input
               type="number"
@@ -259,7 +264,8 @@ function Generate() {
                       <th onClick={() => requestSort('ma_mon_hoc')}>Mã Môn Học</th>
                       <th onClick={() => requestSort('ten_mon_hoc')}>Tên Môn Học</th>
                       <th onClick={() => requestSort('ngay_thi')}>Ngày Thi</th>
-                      <th onClick={() => requestSort('gio_thi')}>Giờ Thi</th>
+                      <th onClick={() => requestSort('gio_thi')}>Giờ Bắt Đầu Thi</th>
+                      <th onClick={() => requestSort('gio_ket_thuc')}>Giờ Kết Thúc Thi</th>
                       <th onClick={() => requestSort('thoi_luong_thi')}>Thời Lượng</th>
                     </tr>
                   </thead>
@@ -271,6 +277,7 @@ function Generate() {
                           <td>{exam.ten_mon_hoc || "N/A"}</td>
                           <td>{exam.ngay_thi}</td>
                           <td>{exam.gio_thi}</td>
+                          <td>{exam.gio_ket_thuc}</td>
                           <td>{exam.thoi_luong_thi} phút</td>
                         </tr>
                       ))

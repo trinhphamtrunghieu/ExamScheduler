@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.sql.Date;
 import java.sql.Time;
+import java.time.LocalTime;
+
 @Getter
 @Setter
 public class Lich_Thi_DTO {
@@ -12,6 +14,7 @@ public class Lich_Thi_DTO {
 	private String ten_giang_vien;
 	private Date ngay_thi;
 	private Time gio_thi;
+	private Time gio_ket_thuc;
 	private String phong_thi;
 	private Integer thoi_luong_thi;
 	public Lich_Thi_DTO() {}
@@ -33,5 +36,6 @@ public class Lich_Thi_DTO {
 		this.gio_thi = lt.gio_thi;
 		this.phong_thi = lt.phong_thi;
 		this.thoi_luong_thi = lt.getMonHoc().thoi_luong_thi;
+		this.gio_ket_thuc = Time.valueOf(lt.gio_thi.toLocalTime().plusMinutes(thoi_luong_thi));
 	}
 }
