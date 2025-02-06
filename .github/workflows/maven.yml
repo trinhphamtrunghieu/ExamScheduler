@@ -28,15 +28,17 @@ jobs:
       # Install dependencies and build React app
       - name: Build React frontend
         run: |
+          find src/main/resources -type f -exec md5sum {} + | md5sum > before_build.md5 || echo "Not exist"
           cd src/main/frontend
           npm install
           npm run build
-
-      # Move React build files to the backend static folder
-      - name: Move React build to static folder
-        run: |
-          mkdir -p src/main/resources/static
-          cp -r src/main/frontend/dist/* src/main/resources/static/
+          find src/main/resources -type f -exec md5sum {} + | md5sum > after_build.md5
+          if cmp -s before_build.md5 after_build.md5; then
+            echo "MD5 checksums are the same, no changes detected in index.html."
+            exit 1
+          else
+            echo "MD5 checksums are different, React build updated index.html."
+          fi
 
       # Set up Java JDK 17
       - name: Set up JDK 17
