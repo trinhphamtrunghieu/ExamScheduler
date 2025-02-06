@@ -63,6 +63,7 @@ function Generate() {
         });
 
         if (!response.ok) {
+            console.log(response)
           if (response.status === 500) {
             console.error("Internal Server Error, retrying...");
             continue; // Retry on 500 Internal Server Error
@@ -204,7 +205,7 @@ function Generate() {
             <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
 
             <label>Max exams per timeslot:</label>
-            <input type="number" onChange={(e) => setMaxExamPerDay(e.target.value)} />
+            <input type="number" onChange={(e) => setMaxExamPerDay(Number(e.target.value))} />
 
             <label>Population Size:</label>
             <input
