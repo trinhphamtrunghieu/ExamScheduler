@@ -10,4 +10,5 @@ import java.util.List;
 public interface Mon_Hoc_Repository extends JpaRepository<Mon_Hoc, String> {
 	List<Mon_Hoc> findByMaMonHocIn(List<String> maMonHocList);
 	List<Mon_Hoc> findByTenMonHocIn(List<String> tenMonHocList);
+	Mon_Hoc findByMaMonHoc(String maMonHoc);
 }
