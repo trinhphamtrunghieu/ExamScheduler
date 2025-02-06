@@ -3,8 +3,10 @@ package com.doan.dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Getter
@@ -33,5 +35,11 @@ public class Lich_Thi_Option {
 	}
 	public int getHourToInt() {
 		return convertTo24Hour(this.hourTo);
+	}
+
+	public long getDayDiff() {
+		return ChronoUnit.DAYS.between(LocalDate.parse(this.getDayFrom()),
+				LocalDate.parse(this.getDayTo())) + 1;
+
 	}
 }

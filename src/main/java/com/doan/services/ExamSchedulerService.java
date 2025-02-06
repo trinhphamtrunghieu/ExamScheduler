@@ -137,8 +137,9 @@ public class ExamSchedulerService {
 		// Sort courses by duration (descending)
 		unscheduledCourses.sort((a, b) -> Integer.compare(b.thoi_luong_thi, a.thoi_luong_thi));
 
-		for (Mon_Hoc course : unscheduledCourses) {
+		while (!unscheduledCourses.isEmpty()) {
 			boolean scheduled = false;
+			Mon_Hoc course = unscheduledCourses.get(0);
 			List<Common.Pair<LocalDate, LocalTime>> availableSlots = new ArrayList<>();
 
 			// Generate all possible time slots
@@ -170,11 +171,11 @@ public class ExamSchedulerService {
 
 				if (isValidExamPlacement(newExam, schedule)) {
 					schedule.add(newExam);
+					unscheduledCourses.remove(0);
 					scheduled = true;
 					break;
 				}
 			}
-
 			// If no valid slot found, try to force placement in least conflicting slot
 			if (!scheduled) {
 				LocalDate lastResortDate = dateFrom.plusDays(totalDays - 1);
@@ -205,7 +206,6 @@ public class ExamSchedulerService {
 				}
 			}
 		}
-
 		return schedule;
 	}
 	private int countConflicts(Lich_Thi exam, List<Lich_Thi> schedule) {

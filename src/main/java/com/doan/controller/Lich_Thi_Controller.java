@@ -25,18 +25,20 @@ public class Lich_Thi_Controller {
 	@PostMapping
 	public ResponseEntity<?> generateSchedule(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
 		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
+			//only 5 timeslot. must have better way
+			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
+				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
+			}
 			List<Lich_Thi_DTO> result = schedulerService.generateExamSchedule(options);
 			String conflict_check = schedulerService.evaluate(result);
-			System.out.println(conflict_check);
-			return ResponseEntity.ok(result);
-			//			if (!conflict_check.isEmpty()) {
-//				System.out.println("Conflict");
-//				return ResponseEntity.status(HttpStatus.OK)
-//						.body(Collections.singletonMap("error", conflict_check));
-//			} else {
-//				System.out.println("No conflict");
-//				return ResponseEntity.ok(result);
-//			}
+			if (!conflict_check.isEmpty()) {
+				System.out.println(conflict_check);
+				return ResponseEntity.status(HttpStatus.OK)
+						.body(Collections.singletonMap("error", conflict_check));
+			} else {
+				System.out.println("No conflict");
+				return ResponseEntity.ok(result);
+			}
 		} else {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}

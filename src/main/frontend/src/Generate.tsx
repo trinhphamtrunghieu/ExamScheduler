@@ -63,7 +63,6 @@ function Generate() {
         });
 
         if (!response.ok) {
-            console.log(response)
           if (response.status === 500) {
             console.error("Internal Server Error, retrying...");
             continue; // Retry on 500 Internal Server Error
