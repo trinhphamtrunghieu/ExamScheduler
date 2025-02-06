@@ -203,7 +203,7 @@ function Generate() {
             <input type="time" value={hourFrom} onChange={(e) => setHourFrom(e.target.value)} />
             <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
 
-            <label>Max exams per day:</label>
+            <label>Max exams per timeslot:</label>
             <input type="number" onChange={(e) => setMaxExamPerDay(e.target.value)} />
 
             <label>Population Size:</label>

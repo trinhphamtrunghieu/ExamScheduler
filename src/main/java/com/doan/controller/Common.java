@@ -9,4 +9,21 @@ public class Common {
 		if (userRole == null) return true; //easy debug
 		return UserRole.valueOf(userRole) == role;
 	}
+	public static class Pair<K, V> {
+		private final K key;
+		private final V value;
+
+		public Pair(K key, V value) {
+			this.key = key;
+			this.value = value;
+		}
+
+		public K getKey() {
+			return key;
+		}
+
+		public V getValue() {
+			return value;
+		}
+	}
 }
