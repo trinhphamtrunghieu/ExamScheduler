@@ -32,6 +32,7 @@ jobs:
           cd src/main/frontend
           npm install
           npm run build
+          cd ../../../
           find src/main/resources -type f -exec md5sum {} + | md5sum > after_build.md5
           if cmp -s before_build.md5 after_build.md5; then
             echo "MD5 checksums are the same, no changes detected in index.html."
