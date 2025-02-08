@@ -5,14 +5,19 @@ import com.doan.model.UserRole;
 import com.doan.repository.Mon_Hoc_Repository;
 import com.doan.services.Dang_Ky_Service;
 import com.doan.services.Sinh_Vien_Service;
+import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -62,6 +67,46 @@ public class Dang_Ky_Controller {
 		List<String> maMonHoc = dangKyDtos.stream().map(Dang_Ky_DTO::getMa_mon_hoc).collect(Collectors.toList());
 		List<Mon_Hoc> result = monHocRepository.findByMaMonHocNotIn(maMonHoc);
 		return ResponseEntity.ok(result);
+	}
+
+	@PostMapping("/export")
+	public ResponseEntity<byte[]> exportRegistration(@RequestBody List<Map<String, Object>> schedule) {
+		try {
+			StringWriter stringWriter = new StringWriter();
+			CSVWriter csvWriter = new CSVWriter(stringWriter);
+
+			// Write header
+			String[] header = {"ma_sinh_vien", "ma_mon_hoc", "ten_mon_hoc", "ten_giang_vien", "ten_sinh_vien"};
+			csvWriter.writeNext(header);
+
+			// Write data rows
+			for (Map<String, Object> exam : schedule) {
+				String[] row = {
+						String.valueOf(exam.get("ma_sinh_vien")),
+						String.valueOf(exam.get("ma_mon_hoc")),
+						String.valueOf(exam.get("ten_mon_hoc")),
+						String.valueOf(exam.get("ten_giang_vien")),
+						String.valueOf(exam.get("ten_sinh_vien"))
+				};
+				csvWriter.writeNext(row);
+			}
+
+			csvWriter.close();
+			byte[] csvBytes = stringWriter.toString().getBytes("UTF-8");
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentDispositionFormData("attachment",
+					"exam_schedule_" + java.time.LocalDate.now() + ".csv");
+			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+			return ResponseEntity.ok()
+					.headers(headers)
+					.body(csvBytes);
+
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().build();
+		}
 	}
 
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
+import { Download } from "lucide-react";
 
 function Generate() {
   const [schedule, setSchedule] = useState([]);
@@ -167,6 +168,41 @@ function Generate() {
     return null;
   }
 
+  const handleExportCSV = async () => {
+    if (schedule.length === 0) {
+      alert("No schedule data to export!");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/generate/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(schedule)
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `exam_schedule_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export schedule. Please try again.');
+    }
+  };
+
   return (
     <div id="root">
       <NavBar />
@@ -250,14 +286,27 @@ function Generate() {
           </div>
 
           <div className="result-section">
-            <h2>Generated Schedule</h2>
-
             {isLoading ? (
               <div className="spinner-container">
                 <div className="spinner"></div>
               </div>
             ) : (
               <div className="table-container">
+                <div className="result-section">
+                    <div className="result-header">
+                        <h2>Generated Schedule</h2>
+                        {schedule.length > 0 && (
+                        <button
+                        onClick={handleExportCSV}
+                        className="export-button"
+                        title="Export as CSV"
+                        >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export CSV
+                        </button>
+                        )}
+                    </div>
+                </div>
                 <table>
                   <thead>
                     <tr>

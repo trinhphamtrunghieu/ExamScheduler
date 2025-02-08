@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
+import { Download } from "lucide-react";
 
 function Registrations() {
   const [registrations, setRegistrations] = useState([]);
@@ -66,6 +67,41 @@ function Registrations() {
     setFilterValue(e.target.value);
   };
 
+  const handleExportCSV = async () => {
+    if (registrations.length === 0) {
+      alert("No schedule data to export!");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/registrations/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(registrations)
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `registration_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export schedule. Please try again.');
+    }
+  };
+
   return (
     <div id="root" className="flex">
       <NavBar /> {/* NavBar */}
@@ -74,39 +110,53 @@ function Registrations() {
 
       <div className="content-area">
         <div className="p-6 bg-gray-50 min-h-screen flex flex-col items-center">
-          <h2 className="text-3xl font-semibold text-indigo-600 mb-6">Danh sách đăng ký</h2>
 
           {/* Filter Form */}
-          <div className="mb-6 w-full max-w-xs space-y-4">
-            <div className="flex items-center">
-              <label htmlFor="filterType" className="mr-2 text-lg">Filter By:</label>
-              <select
-                id="filterType"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="ma_sinh_vien">Mã Sinh Viên</option>
-                <option value="ma_mon_hoc">Mã Môn Học</option>
-                <option value="ten_mon_hoc">Tên Môn Học</option>
-                <option value="ten_giang_vien">Tên Giảng Viên</option>
-                <option value="ten_sinh_vien">Tên Sinh Viên</option>
-              </select>
-            </div>
+            <div className="result-section">
+                <div className="result-header">
+                    <h2>Registration List</h2>
+                    {registrations.length > 0 && (
+                    <button
+                    onClick={handleExportCSV}
+                    className="export-button"
+                    title="Export as CSV"
+                    >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                    </button>
+                )}
+                </div>
+                <div className="mb-6 w-full max-w-xs space-y-4">
+                    <div className="flex items-center">
+                        <label htmlFor="filterType" className="mr-2 text-lg">Filter By:</label>
+                        <select
+                        id="filterType"
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="p-2 border border-gray-300 rounded-lg"
+                        >
+                        <option value="ma_sinh_vien">Mã Sinh Viên</option>
+                        <option value="ma_mon_hoc">Mã Môn Học</option>
+                        <option value="ten_mon_hoc">Tên Môn Học</option>
+                        <option value="ten_giang_vien">Tên Giảng Viên</option>
+                        <option value="ten_sinh_vien">Tên Sinh Viên</option>
+                        </select>
+                    </div>
 
-            {/* Filter Value */}
-            <div className="flex items-center">
-              <label htmlFor="filterValue" className="mr-2 text-lg">Enter Value:</label>
-              <input
-                type="text"
-                id="filterValue"
-                placeholder={`Enter ${filterType === 'ma_sinh_vien' ? 'Student Code' : filterType === 'ma_mon_hoc' ? 'Subject Code' : 'Value'}`}
-                value={filterValue}
-                onChange={handleFilterValueChange}
-                className="p-2 border border-gray-300 rounded-lg"
-              />
+                    {/* Filter Value */}
+                    <div className="flex items-center">
+                        <label htmlFor="filterValue" className="mr-2 text-lg">Enter Value:</label>
+                        <input
+                        type="text"
+                        id="filterValue"
+                        placeholder={`Enter ${filterType === 'ma_sinh_vien' ? 'Student Code' : filterType === 'ma_mon_hoc' ? 'Subject Code' : 'Value'}`}
+                        value={filterValue}
+                        onChange={handleFilterValueChange}
+                        className="p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                </div>
             </div>
-          </div>
 
           <table className="min-w-full table-auto border-collapse bg-white rounded-lg shadow-lg overflow-hidden">
             <thead className="bg-indigo-600 text-white">
