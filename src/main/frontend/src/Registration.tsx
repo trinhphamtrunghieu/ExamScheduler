@@ -155,15 +155,15 @@ function Registrations() {
                   </tr>
                 ))
               ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-3 text-center text-gray-500">No registrations found</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    <tr>
+                      <td colSpan={5} className="px-6 py-3 text-center text-gray-500">No registrations found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  );
+      );
 }
 export default Registrations;

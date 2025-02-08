@@ -25,13 +25,36 @@ function RegisterStudent() {
       .catch((error) => {
         console.error("Error checking user role:", error);
       });
-    fetch(`${API_BASE}/subjects`, {
-        credentials: "include", // Send session cookies for role check
-        })
+//     fetch(`${API_BASE}/subjects`, {
+//         credentials: "include", // Send session cookies for role check
+//         })
+//       .then((res) => res.json())
+//       .then((data) => setCourses(data))
+//       .catch((error) => console.error("Error fetching courses:", error));
+  }, []);
+
+  const findAvailableCourses = (e) => {
+    e.preventDefault();
+    if (!studentId) {
+      alert("Please enter a student ID");
+      return;
+    }
+
+    const requestBody = {
+      maSinhVien: studentId,
+      courseIds: selectedCourses,
+    };
+
+    fetch(`${API_BASE}/registrations/find-available`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      credentials: "include"
+    })
       .then((res) => res.json())
       .then((data) => setCourses(data))
-      .catch((error) => console.error("Error fetching courses:", error));
-  }, []);
+      .catch((error) => console.error("Error registering student:", error));
+  };
 
   // Toggle course selection
   const toggleCourseSelection = (courseId) => {
@@ -94,6 +117,13 @@ function RegisterStudent() {
             disabled={isStudent} // Disable the input if the user is a student
             className="w-full p-2 border rounded"
           />
+            <button
+              type="button"
+              onClick={findAvailableCourses} // Find available courses when clicked
+              className="find-available"
+            >
+              Find Available Courses
+            </button>
 
           <div className="course-list">
             <h3 className="text-lg font-semibold mb-4">Select Courses:</h3>

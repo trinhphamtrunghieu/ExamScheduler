@@ -40,8 +40,4 @@ public class Sinh_Vien_Controller {
 		return ResponseEntity.ok(savedStudent);
 	}
 
-	@GetMapping("/")
-	public String home() {
-		return "index.html";
-	}
 }
