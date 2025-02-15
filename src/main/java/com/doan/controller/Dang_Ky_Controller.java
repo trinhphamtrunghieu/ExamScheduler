@@ -7,18 +7,17 @@ import com.doan.services.Dang_Ky_Service;
 import com.doan.services.Sinh_Vien_Service;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
+import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -33,7 +32,7 @@ public class Dang_Ky_Controller {
 	@Autowired
 	private Mon_Hoc_Repository monHocRepository;
 
-	@GetMapping
+	@GetMapping("/list")
 	public ResponseEntity<List<Dang_Ky_DTO>> getStudentRegistration(HttpSession session) {
 		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
 			return ResponseEntity.ok(dangKyService.getAllRegistration());
@@ -48,6 +47,13 @@ public class Dang_Ky_Controller {
 
 	@PostMapping("/register")
 	public ResponseEntity<?> registerStudent(@RequestBody RegisterRequest request) {
+		if (request.getMaSinhVien() == null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Hãy nhập mã sinh viên"));
+		}
+		Optional<Sinh_Vien> isAvailable = sinhVienService.findStudent(request.getMaSinhVien());
+		if (!isAvailable.isPresent()) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Sinh viên không tồn tại."));
+		}
 		List<Dang_Ky> registrations = new ArrayList<>();
 
 		for (String courseId : request.getCourseIds()) {
@@ -62,8 +68,19 @@ public class Dang_Ky_Controller {
 	}
 
 	@PostMapping("/find-available")
-	public ResponseEntity<List<Mon_Hoc>> findAvailableCourse(@RequestBody RegisterRequest request) {
+	public ResponseEntity<?> findAvailableCourse(@RequestBody RegisterRequest request) {
 		List<Dang_Ky_DTO> dangKyDtos = dangKyService.getByMaSinhVien(request.getMaSinhVien());
+		if (request.getMaSinhVien() == null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Hãy nhập mã sinh viên"));
+		}
+		Optional<Sinh_Vien> isAvailable = sinhVienService.findStudent(request.getMaSinhVien());
+		if (!isAvailable.isPresent()) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Sinh viên không tồn tại."));
+		}
+		if (dangKyDtos.isEmpty()) {
+			List<Mon_Hoc> result = monHocRepository.findAll();
+			return ResponseEntity.ok(result);
+		}
 		List<String> maMonHoc = dangKyDtos.stream().map(Dang_Ky_DTO::getMa_mon_hoc).collect(Collectors.toList());
 		List<Mon_Hoc> result = monHocRepository.findByMaMonHocNotIn(maMonHoc);
 		return ResponseEntity.ok(result);

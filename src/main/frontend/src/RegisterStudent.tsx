@@ -52,7 +52,13 @@ function RegisterStudent() {
       credentials: "include"
     })
       .then((res) => res.json())
-      .then((data) => setCourses(data))
+      .then((data) => {
+           if (data.error) {
+               alert(`${data.error}`);
+            } else {
+               setCourses(data)
+            }
+        })
       .catch((error) => console.error("Error registering student:", error));
   };
 

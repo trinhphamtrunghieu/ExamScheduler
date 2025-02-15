@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
+import { Download, Upload } from "lucide-react";
 
 function Students() {
   const [students, setStudents] = useState([]);
@@ -37,7 +38,7 @@ function Students() {
 
   // Fetch students
   const fetchStudents = () => {
-    fetch(`${API_BASE}/students`, {
+    fetch(`${API_BASE}/students/list`, {
       credentials: "include", // ✅ Ensure session authentication
     })
       .then((res) => res.json())
@@ -47,11 +48,20 @@ function Students() {
       })
       .catch((error) => console.error("Error fetching students:", error));
   };
+  // Filter students based on the selected filterType and filterValue
+  const filteredStudents = students.filter(student => {
+    if (!filterValue) return true;
+    return student[filterType]?.toLowerCase().includes(filterValue.toLowerCase());
+  });
 
   // Sorting function
-  const sortedStudents = [...students].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+    }
+    if (a[sortConfig.key] > b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+    }
     return 0;
   });
 
@@ -61,15 +71,44 @@ function Students() {
     setSortConfig({ key, direction });
   };
 
-  // Filter students based on the selected filterType and filterValue
-  const filteredStudents = students.filter(student => {
-    if (!filterValue) return true;
-    return student[filterType]?.toLowerCase().includes(filterValue.toLowerCase());
-  });
-
   // Handle filter value change
   const handleFilterValueChange = (e) => {
     setFilterValue(e.target.value);
+  };
+
+  const handleExportCSV = async () => {
+    if (students.length === 0) {
+      alert("No schedule data to export!");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/students/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(students)
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `students_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export schedule. Please try again.');
+    }
   };
 
   return (
@@ -79,9 +118,17 @@ function Students() {
       <div className="spacing"></div> {/* Spacing */}
 
       <div className="content-area">
-        <div className="p-6 bg-gray-50 min-h-screen flex flex-col items-center">
-          <h2 className="text-3xl font-semibold text-indigo-600 mb-6">Danh sách sinh viên</h2>
 
+        <div className="p-6 bg-gray-50 min-h-screen flex flex-col items-center">
+            <div className="result-section">
+                <div className="result-header">
+                    <h2>Danh sách sinh viên</h2>
+                        {students.length > 0 && (
+                        <button onClick={handleExportCSV} className="export-button" title="Export as CSV">
+                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                        </button>
+                        )}
+                </div>
           {/* Filter Form */}
           <div className="mb-6 w-full max-w-xs space-y-4">
             <div className="flex items-center">
@@ -110,7 +157,7 @@ function Students() {
               />
             </div>
           </div>
-
+          </div>
           <table className="min-w-full table-auto border-collapse bg-white rounded-lg shadow-lg overflow-hidden">
             <thead className="bg-indigo-600 text-white">
               <tr>
@@ -125,8 +172,8 @@ function Students() {
               </tr>
             </thead>
             <tbody className="text-gray-800">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((s) => (
+              {sortedStudents.length > 0 ? (
+                sortedStudents.map((s) => (
                   <tr key={s.ma_sinh_vien} className="hover:bg-gray-100">
                     <td className="px-6 py-3 border-b">{s.ma_sinh_vien}</td>
                     <td className="px-6 py-3 border-b">{s.ten_sinh_vien}</td>

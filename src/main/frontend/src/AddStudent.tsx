@@ -39,9 +39,14 @@ function AddStudent() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setMessage("Student added successfully!");
-        setStudent({ ma_sinh_vien: "", ten_sinh_vien: "" }); // Clear the form fields
-        setIsLoading(false); // Reset loading state
+        if (data.error) {
+            setIsLoading(false);
+            alert(`${data.error}`);
+        } else {
+            setMessage("Student added successfully!");
+            setStudent({ ma_sinh_vien: "", ten_sinh_vien: "" }); // Clear the form fields
+            setIsLoading(false); // Reset loading state
+        }
       })
       .catch((error) => {
         console.error("Error adding student:", error);

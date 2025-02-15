@@ -13,7 +13,7 @@ function Registrations() {
 
   // Fetch registrations with session
   useEffect(() => {
-    fetch(`${API_BASE}/registrations`, {
+    fetch(`${API_BASE}/registrations/list`, {
       credentials: "include", // Ensures session cookies are sent
     })
       .then((res) => res.json())
@@ -27,8 +27,23 @@ function Registrations() {
       });
   }, [navigate]);
 
+  // Filter registrations based on the selected filterType and filterValue
+  const filteredRegistrations = registrations.filter((registration) => {
+    if (!filterValue) {
+      // If there's no filter value, show all registrations
+      return true;
+    }
+
+    if (filterType === "ma_sinh_vien" || filterType === "ma_mon_hoc" || filterType === "ten_mon_hoc" || filterType === "ten_giang_vien" || filterType === "ten_sinh_vien") {
+      // For text-based filters (student code, subject code, subject name, teacher name, student name)
+      return registration[filterType]?.toLowerCase().includes(filterValue.toLowerCase());
+    }
+
+    return false;
+  });
+
   // Sorting function
-  const sortedRegistrations = [...registrations].sort((a, b) => {
+  const sortedRegistrations = [...filteredRegistrations].sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) {
       return sortConfig.direction === 'asc' ? -1 : 1;
     }
@@ -46,21 +61,6 @@ function Registrations() {
     }
     setSortConfig({ key, direction });
   };
-
-  // Filter registrations based on the selected filterType and filterValue
-  const filteredRegistrations = registrations.filter((registration) => {
-    if (!filterValue) {
-      // If there's no filter value, show all registrations
-      return true;
-    }
-
-    if (filterType === "ma_sinh_vien" || filterType === "ma_mon_hoc" || filterType === "ten_mon_hoc" || filterType === "ten_giang_vien" || filterType === "ten_sinh_vien") {
-      // For text-based filters (student code, subject code, subject name, teacher name, student name)
-      return registration[filterType]?.toLowerCase().includes(filterValue.toLowerCase());
-    }
-
-    return false;
-  });
 
   // Handle filter value change
   const handleFilterValueChange = (e) => {
@@ -194,8 +194,8 @@ function Registrations() {
               </tr>
             </thead>
             <tbody className="text-gray-800">
-              {filteredRegistrations.length > 0 ? (
-                filteredRegistrations.map((r, index) => (
+              {sortedRegistrations.length > 0 ? (
+                sortedRegistrations.map((r, index) => (
                   <tr key={index} className="hover:bg-gray-100">
                     <td className="px-6 py-3 border-b">{r.ma_sinh_vien}</td>
                     <td className="px-6 py-3 border-b">{r.ma_mon_hoc}</td>

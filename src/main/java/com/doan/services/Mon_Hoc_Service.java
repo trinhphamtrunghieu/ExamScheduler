@@ -17,4 +17,7 @@ public class Mon_Hoc_Service {
 	public Mon_Hoc addSubjecy(Mon_Hoc subject) {
 		return monHocRepository.save(subject);
 	}
+	public List<Mon_Hoc> saveAll(List<Mon_Hoc> src){
+		return monHocRepository.saveAll(src);
+	}
 }

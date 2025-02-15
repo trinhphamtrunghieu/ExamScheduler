@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
+import { Download, Upload } from "lucide-react";
 
 function Subjects() {
   const [subjects, setSubjects] = useState([]);
+  const [isImporting, setIsImporting] = useState(false);
   const [filterType, setFilterType] = useState("tenMonHoc"); // Default filter by subject name
   const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
   const [sortConfig, setSortConfig] = useState({ key: 'maMonHoc', direction: 'asc' });
@@ -41,12 +43,11 @@ function Subjects() {
 
   // Fetch subjects
   const fetchSubjects = () => {
-    fetch(`${API_BASE}/subjects`, {
+    fetch(`${API_BASE}/subjects/list`, {
       credentials: "include", // Ensure session authentication
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("Subjects Data:", data);
         setSubjects(data);
 
         // Extract unique exam durations from the subjects data
@@ -121,6 +122,41 @@ function Subjects() {
       setFilterValue(value);
     }
   };
+  const handleExportCSV = async () => {
+    if (subjects.length === 0) {
+      alert("No schedule data to export!");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/subjects/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(subjects)
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `subjects_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export schedule. Please try again.');
+    }
+  };
+
 
   return (
     <div id="root" className="flex">
@@ -131,69 +167,66 @@ function Subjects() {
       <div className="content-area">
 
         <div className="p-6 bg-gray-50 min-h-screen flex flex-col items-center">
-          <h2 className="text-3xl font-semibold text-indigo-600 mb-6">Danh sách môn học</h2>
-
-          {/* Filter Form */}
-          <div className="mb-6 w-full max-w-xs space-y-4">
-            <div className="flex items-center">
-              <label htmlFor="filterType" className="mr-2 text-lg">Filter By:</label>
-              <select
-                id="filterType"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="tenMonHoc">Tên Môn Học</option>
-                <option value="maMonHoc">Mã Môn Học</option>
-                <option value="ngay_bat_dau">Ngày Bắt Đầu</option>
-                <option value="ngay_ket_thuc">Ngày Kết Thúc</option>
-                <option value="ten_gv_dung_lop">Giảng Viên</option>
-                <option value="thoi_luong_thi">Thời Lượng Thi</option> {/* Added Thời Lượng Thi */}
-              </select>
+            <div className="result-section">
+                <div className="result-header">
+                    <h2>Danh sách môn học</h2>
+                        {subjects.length > 0 && (
+                        <button onClick={handleExportCSV} className="export-button" title="Export as CSV">
+                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                        </button>
+                        )}
+                </div>
+                {/* Filter Form */}
+                <div className="mb-6 w-full max-w-xs space-y-4">
+                    <div className="flex items-center">
+                        <label htmlFor="filterType" className="mr-2 text-lg">Filter By:</label>
+                        <select id="filterType" value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="p-2 border border-gray-300 rounded-lg"
+                        >
+                            <option value="tenMonHoc">Tên Môn Học</option>
+                            <option value="maMonHoc">Mã Môn Học</option>
+                            <option value="ngay_bat_dau">Ngày Bắt Đầu</option>
+                            <option value="ngay_ket_thuc">Ngày Kết Thúc</option>
+                            <option value="ten_gv_dung_lop">Giảng Viên</option>
+                            <option value="thoi_luong_thi">Thời Lượng Thi</option> {/* Added Thời Lượng Thi */}
+                        </select>
+                    </div>
+                    {/* Filter Value */}
+                    {filterType === "ngay_bat_dau" || filterType === "ngay_ket_thuc" ? (
+                    <div className="flex items-center">
+                        <label htmlFor="filterValue" className="mr-2 text-lg">Select Date:</label>
+                        <input type="date" id="filterValue" value={filterValue}
+                            onChange={(e) => setFilterValue(e.target.value)}
+                            className="p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                    ) : filterType === "thoi_luong_thi" ? (
+                    <div className="flex items-center">
+                        <label htmlFor="filterValue" className="mr-2 text-lg">Select Duration (minutes):</label>
+                        <select id="filterValue" value={filterValue}
+                                onChange={handleFilterValueChange}
+                                className="p-2 border border-gray-300 rounded-lg"
+                        >
+                            <option value="">-- Select Duration --</option>
+                            {availableExamDurations.map((duration) => (
+                            <option key={duration} value={duration}>{duration} minutes</option>
+                            ))}
+                        </select>
+                    </div>
+                    ) : (
+                    <div className="flex items-center">
+                        <label htmlFor="filterValue" className="mr-2 text-lg">Enter Value:</label>
+                        <input type="text" id="filterValue"
+                            placeholder={`Enter ${filterType === 'tenMonHoc' ? 'Subject Name' : filterType === 'ten_gv_dung_lop' ? 'Instructor Name' : 'Subject Code'}`}
+                            value={filterValue}
+                            onChange={(e) => setFilterValue(e.target.value)}
+                            className="p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                    )}
+                </div>
             </div>
-
-            {/* Filter Value */}
-            {filterType === "ngay_bat_dau" || filterType === "ngay_ket_thuc" ? (
-              <div className="flex items-center">
-                <label htmlFor="filterValue" className="mr-2 text-lg">Select Date:</label>
-                <input
-                  type="date"
-                  id="filterValue"
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            ) : filterType === "thoi_luong_thi" ? (
-              <div className="flex items-center">
-                <label htmlFor="filterValue" className="mr-2 text-lg">Select Duration (minutes):</label>
-                <select
-                  id="filterValue"
-                  value={filterValue}
-                  onChange={handleFilterValueChange}
-                  className="p-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">-- Select Duration --</option>
-                  {availableExamDurations.map((duration) => (
-                    <option key={duration} value={duration}>{duration} minutes</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="flex items-center">
-                <label htmlFor="filterValue" className="mr-2 text-lg">Enter Value:</label>
-                <input
-                  type="text"
-                  id="filterValue"
-                  placeholder={`Enter ${filterType === 'tenMonHoc' ? 'Subject Name' : filterType === 'ten_gv_dung_lop' ? 'Instructor Name' : 'Subject Code'}`}
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            )}
-          </div>
-
           <table className="min-w-full table-auto border-collapse bg-white rounded-lg shadow-lg overflow-hidden">
             <thead className="bg-indigo-600 text-white">
               <tr>

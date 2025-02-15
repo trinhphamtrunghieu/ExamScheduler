@@ -202,7 +202,7 @@ tr:hover {
 }
 
 .result-header {
-  display: flex;
+  display: block;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;

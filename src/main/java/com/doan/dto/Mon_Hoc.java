@@ -1,12 +1,16 @@
 package com.doan.dto;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.sql.Date;
 import java.util.List;
 
 @Entity
 @Table(name = "mon_hoc")
+@Getter
+@Setter
 public class Mon_Hoc {
 
 	@Id
@@ -20,6 +24,6 @@ public class Mon_Hoc {
 	@Column(name = "ten_mon_hoc")
 	public String tenMonHoc;
 
-	@OneToMany(mappedBy = "monHoc")
-	private List<Dang_Ky> registrations;
+//	@OneToMany(mappedBy = "monHoc")
+//	private List<Dang_Ky> registrations;
 }
