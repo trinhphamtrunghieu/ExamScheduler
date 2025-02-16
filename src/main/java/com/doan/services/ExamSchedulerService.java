@@ -500,11 +500,11 @@ public class ExamSchedulerService {
 		List<String> notExistsCourse = checkNotExists(schedule, allCourses);
 		Set<String> duplicateCourse = checkDuplicate(schedule);
 
-		if (!notExistsCourse.isEmpty() || !duplicateCourse.isEmpty()) {
-			System.out.println("Schedule validation failed:");
-			System.out.println("Missing courses: " + notExistsCourse);
-			System.out.println("Duplicate courses: " + duplicateCourse);
-		}
+//		if (!notExistsCourse.isEmpty() || !duplicateCourse.isEmpty()) {
+//			System.out.println("Schedule validation failed:");
+//			System.out.println("Missing courses: " + notExistsCourse);
+//			System.out.println("Duplicate courses: " + duplicateCourse);
+//		}
 
 		return notExistsCourse.isEmpty() && duplicateCourse.isEmpty();
 	}
@@ -662,10 +662,10 @@ public class ExamSchedulerService {
 
 		return bestIndex;
 	}
-	public String evaluate(List<Lich_Thi_DTO> schedule) {
+	public String evaluate(List<Lich_Thi_DTO> schedule, Lich_Thi_Option option) {
 		StringBuilder result = new StringBuilder();
 		List<Dang_Ky> all_regis = dangKyRepository.findAll();
-		List<Mon_Hoc> all_course = monHocRepository.findAll();
+		List<Mon_Hoc> all_course = monHocRepository.findByMaMonHocIn(option.getSelectedSubjects());
 		List<Lich_Thi> schedule_org = schedule.stream().map(e -> {
 			return new Lich_Thi(
 					e.getMa_mon_hoc(),

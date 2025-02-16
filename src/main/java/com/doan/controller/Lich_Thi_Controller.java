@@ -32,7 +32,7 @@ public class Lich_Thi_Controller {
 				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 			}
 			List<Lich_Thi_DTO> result = schedulerService.generateExamSchedule(options);
-			String conflict_check = schedulerService.evaluate(result);
+			String conflict_check = schedulerService.evaluate(result, options);
 			if (!conflict_check.isEmpty()) {
 				System.out.println(conflict_check);
 				return ResponseEntity.status(HttpStatus.OK)

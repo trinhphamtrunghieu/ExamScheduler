@@ -46,7 +46,7 @@ function Generate() {
 
   useEffect(() => {
     if (isProfessor) {
-      fetch(`${API_BASE}/subjects`, { credentials: "include" })
+      fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
         .then((res) => res.json())
         .then((data) => setSubjects(data))
         .catch((error) => console.error("Error fetching subjects:", error));
