@@ -1,15 +1,10 @@
 package com.doan.controller;
 
-import com.doan.dto.Dang_Ky;
 import com.doan.dto.Mon_Hoc;
-import com.doan.dto.RegisterRequest;
 import com.doan.model.UserRole;
 import com.doan.services.Mon_Hoc_Service;
-import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
-import com.opencsv.exceptions.CsvException;
 import jakarta.servlet.http.HttpSession;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,6 +26,7 @@ public class Mon_Hoc_Controller {
 	public ResponseEntity<List<Mon_Hoc>> getAllSubject(HttpSession session) {
 		if (Common.checkAllowRole(session, UserRole.PROFESSOR) || Common.checkAllowRole(session, UserRole.STUDENT)) {
 			List<Mon_Hoc> result = monHocService.getAllSubjects();
+			System.out.println("Fetch subject list. size: " + result.size());
 			return ResponseEntity.ok(result);
 		} else {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

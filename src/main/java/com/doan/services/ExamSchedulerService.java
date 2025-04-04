@@ -30,6 +30,8 @@ public class ExamSchedulerService {
 	private Dang_Ky_Repository dangKyRepository;
 	@Autowired
 	private Lich_Thi_Repository lichThiRepository;
+	@Autowired
+	private Mon_Hoc_Service monHocService;
 
 	private final ThreadLocalRandom random = ThreadLocalRandom.current();
 	private long totalDays = 2L;
@@ -44,6 +46,7 @@ public class ExamSchedulerService {
 	// Time slots of 15 minutes each
 	private List<LocalTime> timeSlots;
 	private Map<String, List<String>> studentCourseMap = new HashMap<>();
+	private List<Mon_Hoc> selected_course = new ArrayList<>();
 
 	private List<LocalTime> generateTimeSlots(int startHour) {
 		List<LocalTime> res = new ArrayList<>();
@@ -51,19 +54,23 @@ public class ExamSchedulerService {
 		List<Integer> slots = Arrays.asList(8, 10, 13, 15, 16);
 		for (Integer s : slots) {
 			if (current.getHour() > s) continue;
-			res.add(LocalTime.of(s, 0));
+			if (s == 16) {
+				res.add(LocalTime.of(16, 30));
+			} else {
+				res.add(LocalTime.of(s, 0));
+			}
 		}
 		return res;
 	}
 
 	public List<Lich_Thi_DTO> generateExamSchedule(Lich_Thi_Option options) {
 		System.out.println("Starting enhanced schedule generation");
-		List<Mon_Hoc> courses = monHocRepository.findByMaMonHocIn(options.getSelectedSubjects());
+		List<Mon_Hoc> courses = monHocService.getSubjectsWithUniqueNames(options.getSelectedSubjects());
 		List<Dang_Ky> registrations = dangKyRepository.findDangKyByMaMonHocIn(options.getSelectedSubjects());
 		System.out.println("Total course: " + courses.size());
 		// Pre-process student registrations
 		this.studentCourseMap = initializeStudentCourseMap(registrations);
-
+		selected_course = courses;
 		// Initialize parameters
 		this.totalDays = ChronoUnit.DAYS.between(LocalDate.parse(options.getDayFrom()),
 				LocalDate.parse(options.getDayTo())) + 1;
@@ -282,7 +289,7 @@ public class ExamSchedulerService {
 	private int calculateFitness(List<Lich_Thi> schedule) {
 		int fitness = 1000;
 
-		if (!validateSchedule(schedule, monHocRepository.findAll())) {
+		if (!validateSchedule(schedule, selected_course)) {
 			return -1;  // Invalid schedule gets zero fitness
 		}
 
@@ -665,7 +672,7 @@ public class ExamSchedulerService {
 	public String evaluate(List<Lich_Thi_DTO> schedule, Lich_Thi_Option option) {
 		StringBuilder result = new StringBuilder();
 		List<Dang_Ky> all_regis = dangKyRepository.findAll();
-		List<Mon_Hoc> all_course = monHocRepository.findByMaMonHocIn(option.getSelectedSubjects());
+		List<Mon_Hoc> all_course = monHocService.getSubjectsWithUniqueNames(option.getSelectedSubjects());
 		List<Lich_Thi> schedule_org = schedule.stream().map(e -> {
 			return new Lich_Thi(
 					e.getMa_mon_hoc(),
@@ -711,11 +718,11 @@ public class ExamSchedulerService {
 					if (first_exam_end.isAfter(second_exam_start)) {
 						// Check for student conflicts
 						for (List<String> studentCourses : sCourseMap.values()) {
-							if (studentCourses.contains(exam1.getMa_mon_hoc()) &&
-									studentCourses.contains(exam2.getMa_mon_hoc())) {
-								String conflictKey = exam1.getMa_mon_hoc() + "-" + exam2.getMa_mon_hoc();
+							if (studentCourses.contains(exam1.getTen_mon_hoc()) &&
+									studentCourses.contains(exam2.getTen_mon_hoc())) {
+								String conflictKey = exam1.getTen_mon_hoc() + "-" + exam2.getTen_mon_hoc();
 								if (conflictPairs.add(conflictKey)) {
-									result.append(String.format("Conflict subject %s with %s\n", exam1.getMa_mon_hoc(), exam2.getMa_mon_hoc()));
+									result.append(String.format("Conflict subject %s with %s\n", exam1.getTen_mon_hoc(), exam2.getTen_mon_hoc()));
 								}
 							}
 						}

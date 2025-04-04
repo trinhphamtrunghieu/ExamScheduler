@@ -44,14 +44,27 @@ function Generate() {
       });
   }, [navigate]);
 
-  useEffect(() => {
-    if (isProfessor) {
-      fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
-        .then((res) => res.json())
-        .then((data) => setSubjects(data))
-        .catch((error) => console.error("Error fetching subjects:", error));
-    }
-  }, [isProfessor]);
+    useEffect(() => {
+      if (isProfessor) {
+        fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            // Process subjects to ensure unique tenMonHoc values
+            const uniqueSubjects = [];
+            const uniqueSubjectNames = new Set();
+
+            data.forEach(sub => {
+              if (!uniqueSubjectNames.has(sub.tenMonHoc)) {
+                uniqueSubjectNames.add(sub.tenMonHoc);
+                uniqueSubjects.push(sub);
+              }
+            });
+
+            setSubjects(uniqueSubjects);
+          })
+          .catch((error) => console.error("Error fetching subjects:", error));
+      }
+    }, [isProfessor]);
 
   const fetchScheduleWithRetry = async (options, retries = 3) => {
     for (let i = 0; i < retries; i++) {
@@ -134,7 +147,7 @@ function Generate() {
   };
 
   const handleSelectAll = () => {
-    const allSubjects = subjects.map((subject) => subject.maMonHoc);
+    const allSubjects = subjects.map((subject) => subject.tenMonHoc);
     setSelectedSubjects(allSubjects);
   };
 
@@ -224,7 +237,7 @@ function Generate() {
                 onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt) => opt.value))}
               >
                 {subjects.map((sub) => (
-                  <option key={sub.maMonHoc} value={sub.maMonHoc}>
+                  <option key={sub.tenMonHoc} value={sub.tenMonHoc}>
                     {sub.tenMonHoc}
                   </option>
                 ))}
