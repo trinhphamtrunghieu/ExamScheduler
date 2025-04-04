@@ -48,7 +48,7 @@ public class ExamSchedulerService {
 	private List<LocalTime> generateTimeSlots(int startHour) {
 		List<LocalTime> res = new ArrayList<>();
 		LocalTime current = LocalTime.of(startHour, 0);
-		List<Integer> slots = Arrays.asList(8, 10, 13, 15, 17);
+		List<Integer> slots = Arrays.asList(8, 10, 13, 15, 16);
 		for (Integer s : slots) {
 			if (current.getHour() > s) continue;
 			res.add(LocalTime.of(s, 0));
