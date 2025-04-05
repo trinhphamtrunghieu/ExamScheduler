@@ -18,4 +18,5 @@ public interface Dang_Ky_Repository extends JpaRepository<Dang_Ky, String> {
 
 	List<Dang_Ky> findDangKyByMaMonHocIn(List<String> maMonHocList);
 	List<Dang_Ky> findDangKyByMaMonHoc(String maMonHocList);
+	List<Dang_Ky> findDangKyByTenMonHocIn(List<String> tenMonHocList);
 }

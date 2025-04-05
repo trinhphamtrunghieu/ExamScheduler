@@ -17,6 +17,10 @@ public class Dang_Ky {
 	@Column(name="ma_mon_hoc")
 	public String maMonHoc;
 
+	@Id
+	@Column(name="ten_mon_hoc")
+	public String tenMonHoc;
+
 	@ManyToOne
 	@JoinColumn(name = "ma_sinh_vien", insertable = false, updatable = false)
 	private Sinh_Vien sinhVien;

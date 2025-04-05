@@ -4,11 +4,11 @@ import mysql.connector
 import pandas as pd
 
 # === CONFIG ===
-CSV_PATH = 'class_data.csv'
+CSV_PATH = '/home/lap14604/Downloads/UIT/do_an/exam-schedule-generator/class_data.csv'
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'password',  # change this
+    'password': '12345678',  # change this
     'database': 'quan_ly_lich_thi'
 }
 
@@ -35,7 +35,7 @@ for _, row in df.iterrows():
     # Add to sets
     students.add((ma_sinh_vien, ten_sinh_vien))
     subjects.add((ma_mon_hoc, ten_gv, ngay_bat_dau, ngay_ket_thuc, 90, ten_mon_hoc))
-    registrations.add((ma_sinh_vien, ma_mon_hoc))
+    registrations.add((ma_sinh_vien, ma_mon_hoc, ten_mon_hoc))
 
 # === STEP 3: Insert into MySQL ===
 conn = mysql.connector.connect(**DB_CONFIG)
@@ -59,11 +59,11 @@ for ma_mh, gv, start, end, duration, ten_mh in subjects:
     """, (ma_mh, gv, start, end, duration, ten_mh))
 
 # Insert registrations
-for mssv, ma_mh in registrations:
+for mssv, ma_mh, ten_mon_hoc in registrations:
     cursor.execute("""
-        INSERT IGNORE INTO dang_ky (ma_sinh_vien, ma_mon_hoc)
-        VALUES (%s, %s)
-    """, (mssv, ma_mh))
+        INSERT IGNORE INTO dang_ky (ma_sinh_vien, ma_mon_hoc, ten_mon_hoc)
+        VALUES (%s, %s, %s)
+    """, (mssv, ma_mh, ten_mon_hoc))
 
 # Commit and cleanup
 conn.commit()

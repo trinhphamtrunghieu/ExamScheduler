@@ -8,6 +8,8 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.doan.controller.Common;
+
+import java.awt.*;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -16,6 +18,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 import java.sql.Date;
 import java.util.stream.Collectors;
@@ -66,7 +69,7 @@ public class ExamSchedulerService {
 	public List<Lich_Thi_DTO> generateExamSchedule(Lich_Thi_Option options) {
 		System.out.println("Starting enhanced schedule generation");
 		List<Mon_Hoc> courses = monHocService.getSubjectsWithUniqueNames(options.getSelectedSubjects());
-		List<Dang_Ky> registrations = dangKyRepository.findDangKyByMaMonHocIn(options.getSelectedSubjects());
+		List<Dang_Ky> registrations = dangKyRepository.findDangKyByTenMonHocIn(options.getSelectedSubjects());
 		System.out.println("Total course: " + courses.size());
 		// Pre-process student registrations
 		this.studentCourseMap = initializeStudentCourseMap(registrations);
@@ -123,7 +126,7 @@ public class ExamSchedulerService {
 		res.clear();
 		for (Dang_Ky reg : registrations) {
 			res.computeIfAbsent(reg.ma_sinh_vien, k -> new ArrayList<>())
-					.add(reg.maMonHoc);
+					.add(reg.tenMonHoc);
 		}
 		return res;
 	}
@@ -169,7 +172,7 @@ public class ExamSchedulerService {
 			// Try to schedule in available slots
 			for (Common.Pair<LocalDate, LocalTime> slot : availableSlots) {
 				Lich_Thi newExam = new Lich_Thi(
-						course.maMonHoc,
+						course.tenMonHoc,
 						Date.valueOf(slot.getKey()),
 						Time.valueOf(slot.getValue()),
 						course,
@@ -193,7 +196,7 @@ public class ExamSchedulerService {
 
 				for (LocalTime time : timeSlots) {
 					Lich_Thi candidateExam = new Lich_Thi(
-							course.maMonHoc,
+							course.tenMonHoc,
 							Date.valueOf(lastResortDate),
 							Time.valueOf(time),
 							course,
@@ -275,8 +278,8 @@ public class ExamSchedulerService {
 						newStartTime.isAfter(existingEndTime))) {
 					// Check if any student is registered for both exams
 					for (Map.Entry<String, List<String>> entry : studentCourseMap.entrySet()) {
-						if (entry.getValue().contains(newExam.getMa_mon_hoc()) &&
-								entry.getValue().contains(existingExam.getMa_mon_hoc())) {
+						if (entry.getValue().contains(newExam.getTen_mon_hoc()) &&
+								entry.getValue().contains(existingExam.getTen_mon_hoc())) {
 							return false;
 						}
 					}
@@ -329,9 +332,9 @@ public class ExamSchedulerService {
 					if (first_exam_end.isAfter(second_exam_start)) {
 						// Check for student conflicts
 						for (List<String> studentCourses : studentCourseMap.values()) {
-							if (studentCourses.contains(exam1.getMa_mon_hoc()) &&
-									studentCourses.contains(exam2.getMa_mon_hoc())) {
-								String conflictKey = exam1.getMa_mon_hoc() + "-" + exam2.getMa_mon_hoc();
+							if (studentCourses.contains(exam1.getTen_mon_hoc()) &&
+									studentCourses.contains(exam2.getTen_mon_hoc())) {
+								String conflictKey = exam1.getTen_mon_hoc() + "-" + exam2.getTen_mon_hoc();
 								if (conflictPairs.add(conflictKey)) {
 									fitness -= 200; // Severe penalty for student conflicts
 								}
@@ -408,8 +411,8 @@ public class ExamSchedulerService {
 		Map<String, Lich_Thi> courseMap2 = new HashMap<>();
 
 		// Create maps for quick lookup
-		parent1.forEach(exam -> courseMap1.put(exam.getMa_mon_hoc(), exam));
-		parent2.forEach(exam -> courseMap2.put(exam.getMa_mon_hoc(), exam));
+		parent1.forEach(exam -> courseMap1.put(exam.getTen_mon_hoc(), exam));
+		parent2.forEach(exam -> courseMap2.put(exam.getTen_mon_hoc(), exam));
 
 		List<Lich_Thi> child1 = new ArrayList<>();
 		List<Lich_Thi> child2 = new ArrayList<>();
@@ -423,18 +426,18 @@ public class ExamSchedulerService {
 		// First part from parent 1
 		for (int i = 0; i < crossPoint; i++) {
 			Lich_Thi exam1 = parent1.get(i);
-			if (!processed1.contains(exam1.getMa_mon_hoc())) {
+			if (!processed1.contains(exam1.getTen_mon_hoc())) {
 				child1.add(new Lich_Thi(exam1));
-				processed1.add(exam1.getMa_mon_hoc());
+				processed1.add(exam1.getTen_mon_hoc());
 			}
 		}
 
 		// Second part from parent 2
 		for (int i = crossPoint; i < parent2.size(); i++) {
 			Lich_Thi exam2 = parent2.get(i);
-			if (!processed1.contains(exam2.getMa_mon_hoc())) {
+			if (!processed1.contains(exam2.getTen_mon_hoc())) {
 				child1.add(new Lich_Thi(exam2));
-				processed1.add(exam2.getMa_mon_hoc());
+				processed1.add(exam2.getTen_mon_hoc());
 			}
 		}
 
@@ -450,18 +453,18 @@ public class ExamSchedulerService {
 		// First part from parent 2
 		for (int i = 0; i < crossPoint; i++) {
 			Lich_Thi exam2 = parent2.get(i);
-			if (!processed2.contains(exam2.getMa_mon_hoc())) {
+			if (!processed2.contains(exam2.getTen_mon_hoc())) {
 				child2.add(new Lich_Thi(exam2));
-				processed2.add(exam2.getMa_mon_hoc());
+				processed2.add(exam2.getTen_mon_hoc());
 			}
 		}
 
 		// Second part from parent 1
 		for (int i = crossPoint; i < parent1.size(); i++) {
 			Lich_Thi exam1 = parent1.get(i);
-			if (!processed2.contains(exam1.getMa_mon_hoc())) {
+			if (!processed2.contains(exam1.getTen_mon_hoc())) {
 				child2.add(new Lich_Thi(exam1));
-				processed2.add(exam1.getMa_mon_hoc());
+				processed2.add(exam1.getTen_mon_hoc());
 			}
 		}
 
@@ -479,11 +482,11 @@ public class ExamSchedulerService {
 	// Check if all course are present
 	private List<String> checkNotExists(List<Lich_Thi> schedule, List<Mon_Hoc> allCourses) {
 		Set<String> requiredCourses = allCourses.stream()
-				.map(c -> c.maMonHoc)
+				.map(c -> c.tenMonHoc)
 				.collect(Collectors.toSet());
 
 		Set<String> scheduledCourses = schedule.stream()
-				.map(Lich_Thi::getMa_mon_hoc)
+				.map(Lich_Thi::getTen_mon_hoc)
 				.collect(Collectors.toSet());
 
 		return requiredCourses.stream()
@@ -493,10 +496,10 @@ public class ExamSchedulerService {
 
 	private Set<String> checkDuplicate(List<Lich_Thi> schedule) {
 		return schedule.stream()
-				.map(Lich_Thi::getMa_mon_hoc)
+				.map(Lich_Thi::getTen_mon_hoc)
 				.filter(course -> Collections.frequency(
 						schedule.stream()
-								.map(Lich_Thi::getMa_mon_hoc)
+								.map(Lich_Thi::getTen_mon_hoc)
 								.collect(Collectors.toList()),
 						course) > 1)
 				.collect(Collectors.toSet());
@@ -518,12 +521,12 @@ public class ExamSchedulerService {
 	private void ensureAllCoursesPresent(List<Lich_Thi> child, List<Lich_Thi> parent1, List<Lich_Thi> parent2) {
 		Set<String> coursesInChild = child.stream()
 				.filter(Objects::nonNull)
-				.map(Lich_Thi::getMa_mon_hoc)
+				.map(Lich_Thi::getTen_mon_hoc)
 				.collect(Collectors.toSet());
 
 		Set<String> allCourses = Stream.concat(
-						parent1.stream().map(Lich_Thi::getMa_mon_hoc),
-						parent2.stream().map(Lich_Thi::getMa_mon_hoc))
+						parent1.stream().map(Lich_Thi::getTen_mon_hoc),
+						parent2.stream().map(Lich_Thi::getTen_mon_hoc))
 				.collect(Collectors.toSet());
 
 		// Add missing courses to the child
@@ -531,7 +534,7 @@ public class ExamSchedulerService {
 			if (!coursesInChild.contains(course)) {
 				// Find the exam for the missing course from either parent
 				Lich_Thi missingExam = Stream.concat(parent1.stream(), parent2.stream())
-						.filter(exam -> exam.getMa_mon_hoc().equals(course))
+						.filter(exam -> exam.getTen_mon_hoc().equals(course))
 						.findFirst()
 						.orElse(null);
 
@@ -567,7 +570,7 @@ public class ExamSchedulerService {
 				case 0: // Change date
 					long newDay = random.nextLong(totalDays);
 					exam = new Lich_Thi(
-							exam.getMa_mon_hoc(),
+							exam.getTen_mon_hoc(),
 							Date.valueOf(this.dateFrom.plusDays(newDay)),
 							exam.getGio_thi(),
 							exam.getMonHoc(),
@@ -579,7 +582,7 @@ public class ExamSchedulerService {
 					LocalTime newTime = getRandomValidTimeSlot(exam.getMonHoc().thoi_luong_thi);
 					if (newTime != null) {
 						exam = new Lich_Thi(
-								exam.getMa_mon_hoc(),
+								exam.getTen_mon_hoc(),
 								exam.getNgay_thi(),
 								Time.valueOf(newTime),
 								exam.getMonHoc(),
@@ -675,10 +678,10 @@ public class ExamSchedulerService {
 		List<Mon_Hoc> all_course = monHocService.getSubjectsWithUniqueNames(option.getSelectedSubjects());
 		List<Lich_Thi> schedule_org = schedule.stream().map(e -> {
 			return new Lich_Thi(
-					e.getMa_mon_hoc(),
+					e.getTen_mon_hoc(),
 					e.getNgay_thi(),
 					e.getGio_thi(),
-					monHocRepository.findByMaMonHoc(e.getMa_mon_hoc()),
+					monHocRepository.findByMaMonHoc(e.getTen_mon_hoc()),
 					e.getPhong_thi());
 		}).collect(Collectors.toList());
 		List<String> notExistsCourse = checkNotExists(schedule_org, all_course);
@@ -698,7 +701,7 @@ public class ExamSchedulerService {
 		// Group exams by student
 		for (Lich_Thi_DTO lt : schedule) {
 			for (Dang_Ky registration : all_regis) {
-				if (registration.maMonHoc.equals(lt.getMa_mon_hoc())) {
+				if (registration.maMonHoc.equals(lt.getTen_mon_hoc())) {
 					studentExamsMap.get(registration.ma_sinh_vien).add(lt);
 				}
 			}

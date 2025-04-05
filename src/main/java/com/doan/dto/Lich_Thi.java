@@ -17,23 +17,23 @@ public class Lich_Thi {
 	public Date ngay_thi;
 
 	@Id
-	public String ma_mon_hoc;
+	public String ten_mon_hoc;
 
 	public String phong_thi;
 	public Time gio_thi;
 
 	@ManyToOne
-	@JoinColumn(name = "ma_mon_hoc", insertable = false, updatable = false)
+	@JoinColumn(name = "ten_mon_hoc", insertable = false, updatable = false)
 	private Mon_Hoc monHoc;
 
 	public Lich_Thi() {}
 
-	public Lich_Thi(String ma_mon_hoc, Date ngay_thi, Time gio_thi, Mon_Hoc monHoc, String phong_thi) {
+	public Lich_Thi(String ten_mon_hoc, Date ngay_thi, Time gio_thi, Mon_Hoc monHoc, String phong_thi) {
 		this.ngay_thi = ngay_thi;
-		this.ma_mon_hoc = ma_mon_hoc;
 		this.gio_thi = gio_thi;
 		this.monHoc = monHoc;
 		this.phong_thi = "to be implement";
+		this.ten_mon_hoc = ten_mon_hoc;
 	}
 
 	public Lich_Thi(Lich_Thi lt) {
@@ -41,6 +41,6 @@ public class Lich_Thi {
 		this.monHoc = lt.monHoc;
 		this.gio_thi = lt.gio_thi;
 		this.phong_thi = lt.phong_thi;
-		this.ma_mon_hoc = lt.ma_mon_hoc;
+		this.ten_mon_hoc = lt.ten_mon_hoc;
 	}
 }
