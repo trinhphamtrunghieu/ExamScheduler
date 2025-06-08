@@ -4,8 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="323db8a8-e2e7-474a-9fca-fa2c5def159f" name="Changes" comment="Update action flow">
-      <change beforePath="$PROJECT_DIR$/.github/workflows/maven.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/maven.yml" afterDir="false" />
+    <list default="true" id="323db8a8-e2e7-474a-9fca-fa2c5def159f" name="Changes" comment="bulk update:&#10;1. generate schedule using subject name&#10;2. add configuration =&gt; allow import, export, save whole .csv file to DB&#10;3. add import, export to multiple command&#10;4. add another method to generate schedule using Welsh Powell algorithm&#10;5. fix bug">
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/doan/dto/DatabaseConfig_DTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/doan/DoanApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/doan/DoanApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_schedule.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_schedule.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,13 +20,18 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Interface" />
         <option value="Enum" />
+        <option value="Interface" />
         <option value="Class" />
       </list>
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="PREVIOUS_COMMIT_AUTHORS">
+      <list>
+        <option value="TPTHieuUIT &lt;127663437+tpthieuuit@users.noreply.github.com&gt;" />
+      </list>
+    </option>
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
         <entry key="$PROJECT_DIR$" value="main" />
@@ -48,39 +58,63 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.run.executor": "Coverage",
-    "Maven. [clean,compile,install,package].executor": "Run",
-    "Maven.doan [spring-boot:run].executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "CICD",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/lap14604/Downloads/UIT/do_an/exam-schedule-generator",
-    "project.structure.last.edited": "Project",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "vcs.Git"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Application.run.executor&quot;: &quot;Coverage&quot;,
+    &quot;Maven. [clean,compile,install,package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.doan [clean,compile,install,package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.doan [spring-boot:run].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/lap14604/Downloads/UIT/do_an/exam-schedule-generator&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/main/frontend/src" />
       <recent name="$PROJECT_DIR$/src/main/java/com" />
     </key>
+    <key name="ExtractSuperBase.RECENT_KEYS">
+      <recent name="com.doan.controller" />
+    </key>
+    <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
+      <recent name="com.doan.config" />
+    </key>
     <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.doan.services" />
       <recent name="com.doan.repository" />
       <recent name="com.doan.dto" />
       <recent name="com.doan.controller" />
       <recent name="com.services" />
-      <recent name="com.repository" />
     </key>
   </component>
   <component name="RunManager" selected="Maven.doan [spring-boot:run]">
     <configuration name="doan [clean,compile,install,package]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
       <MavenSettings>
         <option name="myGeneralSettings" />
-        <option name="myRunnerSettings" />
+        <option name="myRunnerSettings">
+          <MavenRunnerSettings>
+            <option name="delegateBuildToMaven" value="false" />
+            <option name="environmentProperties">
+              <map />
+            </option>
+            <option name="jreName" value="#USE_PROJECT_JDK" />
+            <option name="mavenProperties">
+              <map />
+            </option>
+            <option name="passParentEnv" value="true" />
+            <option name="runMavenInBackground" value="true" />
+            <option name="skipTests" value="true" />
+            <option name="vmOptions" value="" />
+          </MavenRunnerSettings>
+        </option>
         <option name="myRunnerParameters">
           <MavenRunnerParameters>
             <option name="cmdOptions" />
@@ -170,8 +204,179 @@
       <option name="project" value="LOCAL" />
       <updated>1738770343072</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Update action flow">
+      <option name="closed" value="true" />
+      <created>1738774827072</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1738774827072</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Update generate schedule&#10;1. correct time overlapping&#10;2. correct time slot (only 8, 10, 13, 15, 17)&#10;3. add lookup in crossover to prevent missing course&#10;4. add validate to check missing and duplicate course&#10;5. disable swap mutation to prevent missing or duplicate course&#10;6. add end-time to UI&#10;7. remove unused">
+      <option name="closed" value="true" />
+      <created>1738855379729</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1738855379729</updated>
+    </task>
+    <task id="LOCAL-00005" summary="add max exam per timeslot constraint">
+      <option name="closed" value="true" />
+      <created>1738856654108</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1738856654108</updated>
+    </task>
+    <task id="LOCAL-00006" summary="add build frontend">
+      <option name="closed" value="true" />
+      <created>1738857038020</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1738857038020</updated>
+    </task>
+    <task id="LOCAL-00007" summary="fix src/Generate.tsx(207,68): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction&lt;number&gt;'.">
+      <option name="closed" value="true" />
+      <created>1738857189144</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1738857189144</updated>
+    </task>
+    <task id="LOCAL-00008" summary="add check md5 of resource folder">
+      <option name="closed" value="true" />
+      <created>1738857726582</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1738857726582</updated>
+    </task>
+    <task id="LOCAL-00009" summary="correct cd">
+      <option name="closed" value="true" />
+      <created>1738857884053</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1738857884053</updated>
+    </task>
+    <task id="LOCAL-00010" summary="add missing">
+      <option name="closed" value="true" />
+      <created>1738865110289</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1738865110289</updated>
+    </task>
+    <task id="LOCAL-00011" summary="log when timeslot is too small (equation: 5 * dayDiff * maxTimeslot &gt; total course)">
+      <option name="closed" value="true" />
+      <created>1738867013208</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1738867013208</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Merge pull request #3 from TPTHieuUIT/build_frontend_CICD&#10;&#10;Build frontend cicd">
+      <option name="closed" value="true" />
+      <created>1738867078825</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1738867078825</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Add log min timestlot">
+      <option name="closed" value="true" />
+      <created>1738867405700</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1738867405700</updated>
+    </task>
+    <task id="LOCAL-00014" summary="add register with available slot only&#10;fix: refresh error as reactjs + springboot monolith">
+      <option name="closed" value="true" />
+      <created>1739009368384</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1739009368384</updated>
+    </task>
+    <task id="LOCAL-00015" summary="add export as csv for schedule and registration">
+      <option name="closed" value="true" />
+      <created>1739011533252</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1739011533252</updated>
+    </task>
+    <task id="LOCAL-00016" summary="add package reactjs">
+      <option name="closed" value="true" />
+      <created>1739011627153</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1739011627153</updated>
+    </task>
+    <task id="LOCAL-00017" summary="add pom dependency">
+      <option name="closed" value="true" />
+      <created>1739011734177</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1739011734177</updated>
+    </task>
+    <task id="LOCAL-00018" summary="fix bug&#10;- fix bug: generate page access wrong link&#10;- fix bug: evaluate schedule with selected of course">
+      <option name="closed" value="true" />
+      <created>1739677254601</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1739677254601</updated>
+    </task>
+    <task id="LOCAL-00019" summary="update frontend">
+      <option name="closed" value="true" />
+      <created>1743781063215</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1743781063215</updated>
+    </task>
+    <task id="LOCAL-00020" summary="add code to update data">
+      <option name="closed" value="true" />
+      <created>1743781132142</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1743781132142</updated>
+    </task>
+    <task id="LOCAL-00021" summary="generate schedule using course name">
+      <option name="closed" value="true" />
+      <created>1743784886938</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1743784886938</updated>
+    </task>
+    <task id="LOCAL-00022" summary="fix: generate schedule using coursrname">
+      <option name="closed" value="true" />
+      <created>1743818716650</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1743818716650</updated>
+    </task>
+    <task id="LOCAL-00023" summary="bulk update:&#10;1. generate schedule using subject name&#10;2. add configuration =&gt; allow import, export, save whole .csv file to DB&#10;3. add import, export to multiple command&#10;4. add another method to generate schedule using Welsh Powell algorithm&#10;5. fix bug">
+      <option name="closed" value="true" />
+      <created>1749404985175</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1749404985175</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.ts" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -184,7 +389,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="CICD" />
+                        <option value="main" />
                       </list>
                     </value>
                   </entry>
@@ -198,8 +403,30 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Add configuration" />
+    <MESSAGE value="update maven.yml" />
     <MESSAGE value="Update action flow" />
-    <option name="LAST_COMMIT_MESSAGE" value="Update action flow" />
+    <MESSAGE value="Update generate schedule&#10;1. correct time overlapping&#10;2. correct time slot (only 8, 10, 13, 15, 17)&#10;3. add lookup in crossover to prevent missing course&#10;4. add validate to check missing and duplicate course&#10;5. disable swap mutation to prevent missing or duplicate course&#10;6. add end-time to UI" />
+    <MESSAGE value="Update generate schedule&#10;1. correct time overlapping&#10;2. correct time slot (only 8, 10, 13, 15, 17)&#10;3. add lookup in crossover to prevent missing course&#10;4. add validate to check missing and duplicate course&#10;5. disable swap mutation to prevent missing or duplicate course&#10;6. add end-time to UI&#10;7. remove unused" />
+    <MESSAGE value="add max exam per timeslot constraint" />
+    <MESSAGE value="add build frontend" />
+    <MESSAGE value="fix src/Generate.tsx(207,68): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction&lt;number&gt;'." />
+    <MESSAGE value="add check md5 of resource folder" />
+    <MESSAGE value="correct cd" />
+    <MESSAGE value="add missing" />
+    <MESSAGE value="log when timeslot is too small (equation: 5 * dayDiff * maxTimeslot &gt; total course)" />
+    <MESSAGE value="Merge pull request #3 from TPTHieuUIT/build_frontend_CICD&#10;&#10;Build frontend cicd" />
+    <MESSAGE value="Add log min timestlot" />
+    <MESSAGE value="add register with available slot only&#10;fix: refresh error as reactjs + springboot monolith" />
+    <MESSAGE value="add export as csv for schedule and registration" />
+    <MESSAGE value="add package reactjs" />
+    <MESSAGE value="add pom dependency" />
+    <MESSAGE value="fix bug&#10;- fix bug: generate page access wrong link&#10;- fix bug: evaluate schedule with selected of course" />
+    <MESSAGE value="update frontend" />
+    <MESSAGE value="add code to update data" />
+    <MESSAGE value="generate schedule using course name" />
+    <MESSAGE value="fix: generate schedule using coursrname" />
+    <MESSAGE value="bulk update:&#10;1. generate schedule using subject name&#10;2. add configuration =&gt; allow import, export, save whole .csv file to DB&#10;3. add import, export to multiple command&#10;4. add another method to generate schedule using Welsh Powell algorithm&#10;5. fix bug" />
+    <option name="LAST_COMMIT_MESSAGE" value="bulk update:&#10;1. generate schedule using subject name&#10;2. add configuration =&gt; allow import, export, save whole .csv file to DB&#10;3. add import, export to multiple command&#10;4. add another method to generate schedule using Welsh Powell algorithm&#10;5. fix bug" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/exam_schedule_generator$run.ic" NAME="run Coverage Results" MODIFIED="1738254012400" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="idea" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="true" />
