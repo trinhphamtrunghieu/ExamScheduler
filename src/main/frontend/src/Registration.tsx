@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, changeEvent } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
