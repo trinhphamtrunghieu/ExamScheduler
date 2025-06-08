@@ -66,35 +66,43 @@ function Generate() {
       }
     }, [isProfessor]);
 
-  const fetchScheduleWithRetry = async (options, retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(`${API_BASE}/generate`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(options),
-        });
+    const fetchScheduleWithRetry = async (options, method, retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+            try {
+                let path = "generate"
+                if (method === '1') {
+                    path = "generate"
+                } else if (method === '2') {
+                    path = "generate2"
+                } else {
+                    throw new Error(`Invalid method: ${method}`)
+                }
+                const response = await fetch(`${API_BASE}/schedule/${path}`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(options),
+                });
 
-        if (!response.ok) {
-          if (response.status === 500) {
-            console.error("Internal Server Error, retrying...");
-            continue; // Retry on 500 Internal Server Error
-          }
-          throw new Error(`Error: ${response.statusText}`);
+                if (!response.ok) {
+                    if (response.status === 500) {
+                        console.error("Internal Server Error, retrying...");
+                        continue; // Retry on 500 Internal Server Error
+                    }
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                    return data; // Return successful response data
+                } catch (error) {
+                    if (i === retries - 1) {
+                        throw error; // Throw error if last retry fails
+                }
+            }
         }
+    };
 
-        const data = await response.json();
-        return data; // Return successful response data
-      } catch (error) {
-        if (i === retries - 1) {
-          throw error; // Throw error if last retry fails
-        }
-      }
-    }
-  };
-
-  const handleGenerateSchedule = () => {
+  const handleGenerateSchedule = (method) => {
     setValidationError("");
     const dateFrom = new Date(dayFrom);
     const dateTo = new Date(dayTo);
@@ -130,12 +138,14 @@ function Generate() {
       maxExamPerDay,
     };
 
-    fetchScheduleWithRetry(options)
+    fetchScheduleWithRetry(options, method)
       .then((data) => {
         setIsLoading(false);
         if (data.error) {
           alert(`${data.error}`);
+          setSchedule(data.data)
         } else {
+          alert(`${data.error}`);
           setSchedule(data);
         }
       })
@@ -188,7 +198,7 @@ function Generate() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/generate/export`, {
+      const response = await fetch(`${API_BASE}/schedule/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,8 +303,11 @@ function Generate() {
 
             {validationError && <div className="error-message">{validationError}</div>}
 
-            <button onClick={handleGenerateSchedule} disabled={isLoading}>
-              Generate Schedule
+            <button onClick={() => handleGenerateSchedule('1')} disabled={isLoading}>
+              Generate Schedule - Genetic Algorithm
+            </button>
+            <button onClick={() => handleGenerateSchedule('2')} disabled={isLoading}>
+              Generate Schedule - Welsh-Powell Algorithm
             </button>
           </div>
 

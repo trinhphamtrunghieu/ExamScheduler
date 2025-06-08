@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.doan.controller.Common;
 
-import java.awt.*;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -66,8 +65,8 @@ public class ExamSchedulerService {
 		return res;
 	}
 
-	public List<Lich_Thi_DTO> generateExamSchedule(Lich_Thi_Option options) {
-		System.out.println("Starting enhanced schedule generation");
+	public List<Lich_Thi> generateExamSchedule(Lich_Thi_Option options) {
+		System.out.println("Starting genetic algorithm schedule generation");
 		List<Mon_Hoc> courses = monHocService.getSubjectsWithUniqueNames(options.getSelectedSubjects());
 		List<Dang_Ky> registrations = dangKyRepository.findDangKyByTenMonHocIn(options.getSelectedSubjects());
 		System.out.println("Total course: " + courses.size());
@@ -118,7 +117,7 @@ public class ExamSchedulerService {
 			executor.shutdown();
 		}
 
-		return saveAndConvertSchedule(bestSchedule);
+		return bestSchedule;
 	}
 
 	private Map<String, List<String>> initializeStudentCourseMap(List<Dang_Ky> registrations) {
@@ -311,6 +310,12 @@ public class ExamSchedulerService {
 			// Penalty for end time violations
 			if (exam1EndTime.isAfter(LocalTime.of(endHour, 0))) {
 				fitness -= 100;
+			}
+
+			LocalDate exam1StartDate = exam1.getNgay_thi().toLocalDate();
+			LocalTime exam1StartTime = exam1.getGio_thi().toLocalTime();
+			if (exam1StartDate.isAfter(dateFrom) && exam1StartTime.isAfter(LocalTime.of(12, 0))) {
+				fitness -= 50;
 			}
 
 			// Count exams per day and apply penalty for exceeding maxExamPerDay
@@ -510,12 +515,6 @@ public class ExamSchedulerService {
 		List<String> notExistsCourse = checkNotExists(schedule, allCourses);
 		Set<String> duplicateCourse = checkDuplicate(schedule);
 
-//		if (!notExistsCourse.isEmpty() || !duplicateCourse.isEmpty()) {
-//			System.out.println("Schedule validation failed:");
-//			System.out.println("Missing courses: " + notExistsCourse);
-//			System.out.println("Duplicate courses: " + duplicateCourse);
-//		}
-
 		return notExistsCourse.isEmpty() && duplicateCourse.isEmpty();
 	}
 	private void ensureAllCoursesPresent(List<Lich_Thi> child, List<Lich_Thi> parent1, List<Lich_Thi> parent2) {
@@ -566,8 +565,8 @@ public class ExamSchedulerService {
 			Lich_Thi exam = mutated.get(index);
 
 			// Apply one of several mutation operations
-			switch (random.nextInt(3)) {
-				case 0: // Change date
+			switch (random.nextInt(2)) {
+				case 0: { // Change date
 					long newDay = random.nextLong(totalDays);
 					exam = new Lich_Thi(
 							exam.getTen_mon_hoc(),
@@ -577,8 +576,8 @@ public class ExamSchedulerService {
 							exam.getPhong_thi()
 					);
 					break;
-
-				case 1: // Change time
+				}
+				case 1: { // Change time
 					LocalTime newTime = getRandomValidTimeSlot(exam.getMonHoc().thoi_luong_thi);
 					if (newTime != null) {
 						exam = new Lich_Thi(
@@ -590,7 +589,7 @@ public class ExamSchedulerService {
 						);
 					}
 					break;
-
+				}
 //				case 2: // Swap with another exam
 //					int swapIndex = random.nextInt(schedule.size());
 //					if (swapIndex != index) {
@@ -618,6 +617,23 @@ public class ExamSchedulerService {
 		}
 		return result;
 	}
+
+	public List<Lich_Thi_DTO> convertSchedule(List<Lich_Thi> schedule) {
+		List<Lich_Thi_DTO> result = new ArrayList<>();
+		for (Lich_Thi exam : schedule) {
+			result.add(new Lich_Thi_DTO(exam));
+		}
+		return result;
+	}
+
+	public void saveToDB(List<Lich_Thi_DTO> schedule) {
+		System.out.println("remove old schedule");
+		lichThiRepository.deleteLichThi();
+		for (Lich_Thi_DTO exam : schedule) {
+			lichThiRepository.save(exam.getLichThi());
+		}
+	}
+
 	private List<Future<Integer>> evaluatePopulation(List<List<Lich_Thi>> population, ExecutorService executor) {
 		List<Future<Integer>> fitnessValues = new ArrayList<>();
 

@@ -4,7 +4,10 @@ import com.doan.dto.Dang_Ky;
 import com.doan.dto.Dang_Ky_DTO;
 import com.doan.repository.Dang_Ky_Repository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -22,5 +25,9 @@ public class Dang_Ky_Service {
 
 	public List<Dang_Ky_DTO> getByMaSinhVien(String studentId) {
 		return dangKyRepository.findByMSV(studentId);
+	}
+
+	public int deleteAllDangKy() {
+		return dangKyRepository.deleteAllDangKy();
 	}
 }

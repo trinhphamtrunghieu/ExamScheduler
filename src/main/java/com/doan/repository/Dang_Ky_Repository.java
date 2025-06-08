@@ -3,8 +3,10 @@ package com.doan.repository;
 import com.doan.dto.Dang_Ky;
 import com.doan.dto.Dang_Ky_DTO;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,4 +21,8 @@ public interface Dang_Ky_Repository extends JpaRepository<Dang_Ky, String> {
 	List<Dang_Ky> findDangKyByMaMonHocIn(List<String> maMonHocList);
 	List<Dang_Ky> findDangKyByMaMonHoc(String maMonHocList);
 	List<Dang_Ky> findDangKyByTenMonHocIn(List<String> tenMonHocList);
+	@Modifying
+	@Transactional
+	@Query("DELETE from Dang_Ky dk")
+	int deleteAllDangKy();
 }

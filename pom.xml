@@ -89,7 +89,13 @@
 			<groupId>com.opencsv</groupId>
 			<artifactId>opencsv</artifactId>
 			<version>5.7.1</version>
-		</dependency>	</dependencies>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.10.0</version>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>

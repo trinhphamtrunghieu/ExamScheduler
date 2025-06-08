@@ -55,6 +55,11 @@ function Navbar() {
                 Đăng ký thi
               </Link>
             </li>
+            <li>
+              <Link to="/config" className="block px-4 py-2 rounded-md hover:bg-indigo-700">
+                Cài đặt
+              </Link>
+            </li>
           </ul>
         )}
 

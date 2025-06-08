@@ -1,31 +1,62 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, changeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 
 function Registrations() {
-  const [registrations, setRegistrations] = useState([]);
-  const [filterType, setFilterType] = useState("ma_sinh_vien"); // Default filter by student code
-  const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
-  const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
-  const navigate = useNavigate();
+    const [registrations, setRegistrations] = useState([]);
+    const [userRole, setUserRole] = useState(null); // Store user role
+    const [filterType, setFilterType] = useState("ma_sinh_vien"); // Default filter by student code
+    const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
+    const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
+    const [isImporting, setIsImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState("");
+    const [importError, setImportError] = useState("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [disabledDownload, setDisabledDownload] = useState(false);
+    const navigate = useNavigate();
 
-  // Fetch registrations with session
+  // Check session and fetch registration
   useEffect(() => {
+    // Fetch user session first
+    fetch(`${API_BASE}/auth/session`, {
+      method: "GET",
+      credentials: "include", // ✅ Ensures session cookies are sent
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.role) {
+          navigate("/"); // Redirect to login if no session
+        } else {
+          setUserRole(data.role);
+          if (data.role === "PROFESSOR") {
+            fetchRegistrations(); // Only fetch students if professor
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("Error checking session:", error);
+        navigate("/");
+      });
+  }, []);
+
+  // Fetch students
+  const fetchRegistrations = () => {
     fetch(`${API_BASE}/registrations/list`, {
-      credentials: "include", // Ensures session cookies are sent
+      credentials: "include", // ✅ Ensure session authentication
     })
       .then((res) => res.json())
       .then((data) => {
         console.log("Registrations Data:", data);
+        setDisabledDownload(false);
         setRegistrations(data);
       })
       .catch((error) => {
         console.error("Error fetching registrations:", error);
         navigate("/"); // Redirect to login if there's an error
       });
-  }, [navigate]);
+  };
 
   // Filter registrations based on the selected filterType and filterValue
   const filteredRegistrations = registrations.filter((registration) => {
@@ -67,41 +98,72 @@ function Registrations() {
     setFilterValue(e.target.value);
   };
 
-  const handleExportCSV = async () => {
-    if (registrations.length === 0) {
-      alert("No schedule data to export!");
-      return;
-    }
+    const handleExportCSV = async () => {
+        if (registrations.length === 0) {
+            alert("No registration data to export!");
+            return;
+        }
 
-    try {
-      const response = await fetch(`${API_BASE}/registrations/export`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(registrations)
-      });
+        try {
+            const response = await fetch(
+                `${API_BASE}/registrations/export`, {
+                    method: 'POST',
+                    headers: {
+                    'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(registrations)
+                });
+            if (!response.ok) {
+                throw new Error('Export failed');
+            }
 
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', `registration_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            alert('Failed to export schedule. Please try again.');
+        }
+    };
+    const handleImportCSV = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsImporting(true);
+        setImportMessage("");
+        setImportError("");
+        const formData = new FormData();
+        formData.append("file", file);
 
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `registration_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error('Error exporting CSV:', error);
-      alert('Failed to export schedule. Please try again.');
-    }
-  };
+        try {
+            const response = await fetch(`${API_BASE}/registrations/import`, {
+              method: "POST",
+              credentials: "include",
+              body: formData,
+            });
 
+            const data = await response.json();
+            if (response.ok) {
+                setImportMessage(data.message || "Registrations imported successfully!");
+                fetchRegistrations(); // Refresh the registration list
+            } else {
+                setImportError(data.error || "Failed to import registration");
+            }
+        } catch (error) {
+            setImportError("Network error. Please try again.");
+            console.error("Import error:", error);
+        } finally {
+            setIsImporting(false);
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
   return (
     <div id="root" className="flex">
       <NavBar /> {/* NavBar */}
@@ -115,16 +177,38 @@ function Registrations() {
             <div className="result-section">
                 <div className="result-header">
                     <h2>Registration List</h2>
-                    {registrations.length > 0 && (
-                    <button
-                    onClick={handleExportCSV}
-                    className="export-button"
-                    title="Export as CSV"
-                    >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV
-                    </button>
-                )}
+                    <div className="import-export-button-container">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImportCSV}
+                            accept=".csv"
+                            className="hidden"
+                            disabled={isImporting}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isImporting}
+                            className="import-export-button"
+                        >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {isImporting ? "Importing..." : "Import CSV"}
+                        </button>
+                        <button
+                            onClick={handleExportCSV}
+                            title="Export as CSV"
+                            disabled={disabledDownload}
+                            className="import-export-button"
+                        >
+                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                        </button>
+                    </div>
+                    {importMessage && (
+                    <div className="mt-2 text-green-600">{importMessage}</div>
+                    )}
+                    {importError && (
+                    <div className="mt-2 text-red-500">{importError}</div>
+                    )}
                 </div>
                 <div className="mb-6 w-full max-w-xs space-y-4">
                     <div className="flex items-center">

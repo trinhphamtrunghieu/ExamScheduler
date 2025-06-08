@@ -11,6 +11,7 @@ import Students from "./Student"
 import Subjects from "./Subject"
 import Registrations from "./Registration"
 import Generate from "./Generate"
+import Configuration from "./Configuration"
 const API_BASE = "http://localhost:8080";
 
 function Home() {
@@ -28,6 +29,7 @@ export default function App() {
     <UserProvider>
     <Router>
       <Routes>
+        <Route path="/config" element={<Configuration />} />
         <Route path="/" element={<Login />} />
         <Route path="/home" element={<Home />} />
         <Route path="/students" element={<Students />} />

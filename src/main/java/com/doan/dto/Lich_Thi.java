@@ -8,18 +8,24 @@ import java.sql.Date;
 import java.sql.Time;
 
 @Entity
-@IdClass(Lich_Thi_Id.class)
 @Table(name = "lich_thi")
 @Getter
 @Setter
 public class Lich_Thi {
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)  // auto-increment id
+	private Integer id;
+
+	@Column(name = "ngay_thi", nullable = false)
 	public Date ngay_thi;
 
-	@Id
+	@Column(name = "ten_mon_hoc", nullable = false)
 	public String ten_mon_hoc;
 
+	@Column(name = "phong_thi", nullable = false)
 	public String phong_thi;
+
+	@Column(name = "gio_thi", nullable = false)
 	public Time gio_thi;
 
 	@ManyToOne

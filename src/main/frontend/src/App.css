@@ -223,3 +223,45 @@ tr:hover {
 .export-button:hover {
   background-color: #45a049;
 }
+
+.import-export-button-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* equivalent to Tailwind's gap-x-4 */
+  margin-bottom: 1.5rem; /* equivalent to mb-6 */
+}
+
+.import-export-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  background-color: #16a34a; /* Tailwind green-600 */
+  color: white;
+  border-radius: 0.5rem; /* rounded-lg */
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.import-export-button:hover {
+  background-color: #15803d; /* Tailwind green-700 */
+}
+
+.input-field {
+  @apply border border-gray-300 rounded-lg px-4 py-2 w-full;
+}
+
+
+.import-section {
+  margin-top: 1rem;
+  display: flex;
+  align-items: flex-start;
+}
+
+.import-button {
+  margin-top: 0.5rem;
+}
+
+.hidden {
+    display: none;
+}

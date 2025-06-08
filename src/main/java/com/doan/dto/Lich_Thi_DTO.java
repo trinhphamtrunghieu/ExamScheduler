@@ -22,6 +22,7 @@ public class Lich_Thi_DTO {
 	private Time gio_ket_thuc;
 	private String phong_thi;
 	private Integer thoi_luong_thi;
+	public Lich_Thi lichThi;
 	public Lich_Thi_DTO() {}
 	public Lich_Thi_DTO(String ma_mon_hoc, String ten_mon_hoc, String ten_giang_vien, Date ngay_thi, Time gio_thi, String phong_thi, Integer thoi_luong_thi) {
 //		this.ma_mon_hoc = ma_mon_hoc;
@@ -31,6 +32,10 @@ public class Lich_Thi_DTO {
 		this.gio_thi = gio_thi;
 		this.phong_thi = phong_thi;
 		this.thoi_luong_thi = thoi_luong_thi;
+		this.lichThi = new Lich_Thi();
+		this.lichThi.setNgay_thi(ngay_thi);
+		this.lichThi.setPhong_thi(phong_thi);
+		this.lichThi.setGio_thi(gio_thi);
 	}
 
 	public Lich_Thi_DTO(Lich_Thi lt) {
@@ -42,6 +47,7 @@ public class Lich_Thi_DTO {
 		this.phong_thi = lt.phong_thi;
 		this.thoi_luong_thi = lt.getMonHoc().thoi_luong_thi;
 		this.gio_ket_thuc = Time.valueOf(lt.gio_thi.toLocalTime().plusMinutes(thoi_luong_thi));
+		this.lichThi = lt;
 	}
 
 //	public Lich_Thi toLichThi() {

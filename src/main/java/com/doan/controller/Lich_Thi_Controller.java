@@ -1,9 +1,11 @@
 package com.doan.controller;
 
+import com.doan.dto.Lich_Thi;
 import com.doan.dto.Lich_Thi_DTO;
 import com.doan.dto.Lich_Thi_Option;
 import com.doan.model.UserRole;
 import com.doan.services.ExamSchedulerService;
+import com.doan.services.ExamSchedulerService2;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,36 +17,79 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.StringWriter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/generate")
+@RequestMapping("/schedule")
 public class Lich_Thi_Controller {
 	@Autowired
 	private ExamSchedulerService schedulerService;
 
-	@PostMapping
+	@Autowired
+	private ExamSchedulerService2 schedulerService2;
+
+	@PostMapping("/generate")
 	public ResponseEntity<?> generateSchedule(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
 		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
 			//only 5 timeslot. must have better way
 			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 			}
-			List<Lich_Thi_DTO> result = schedulerService.generateExamSchedule(options);
-			String conflict_check = schedulerService.evaluate(result, options);
+			List<Lich_Thi> result = schedulerService.generateExamSchedule(options);
+			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(result);
+			String conflict_check = schedulerService.evaluate(ldto, options);
 			if (!conflict_check.isEmpty()) {
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", conflict_check);
+				response.put("data", ldto);
 				System.out.println(conflict_check);
 				return ResponseEntity.status(HttpStatus.OK)
-						.body(Collections.singletonMap("error", conflict_check));
+						.body(response);
 			} else {
-				System.out.println("No conflict");
-				return ResponseEntity.ok(result);
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", "success");
+				response.put("data", ldto);
+				schedulerService.saveToDB(ldto);
+				return ResponseEntity.status(HttpStatus.OK)
+						.body(response);
 			}
 		} else {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
 	}
+
+	@PostMapping("/generate2")
+	public ResponseEntity<?> generateSchedule2(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
+		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
+			//only 5 timeslot. must have better way
+			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
+				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
+			}
+			List<Lich_Thi> lich_thi = schedulerService2.generateExamSchedule(options);
+			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(lich_thi);
+			String conflict_check = schedulerService.evaluate(ldto, options);
+			if (!conflict_check.isEmpty()) {
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", conflict_check);
+				response.put("data", ldto);
+				System.out.println(conflict_check);
+				return ResponseEntity.status(HttpStatus.OK)
+						.body(response);
+			} else {
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", "success");
+				response.put("data", ldto);
+				schedulerService.saveToDB(ldto);
+				return ResponseEntity.status(HttpStatus.OK)
+						.body(response);
+			}
+		} else {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+		}
+	}
+
 
 	@PostMapping("/export")
 	public ResponseEntity<byte[]> exportSchedule(@RequestBody List<Map<String, Object>> schedule) {

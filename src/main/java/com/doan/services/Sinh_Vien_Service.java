@@ -19,6 +19,11 @@ public class Sinh_Vien_Service {
 		return sinhVienRepository.save(newSV);
 	}
 
+	public List<Sinh_Vien> addAllStudent(List<Sinh_Vien> newSV) {
+		return sinhVienRepository.saveAll(newSV);
+	}
+
+
 	public Optional<Sinh_Vien> findStudent(String id) {
 		return sinhVienRepository.findById(id);
 	}

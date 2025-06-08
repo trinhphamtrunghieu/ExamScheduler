@@ -3,20 +3,26 @@ package com.doan.controller;
 import com.doan.dto.Sinh_Vien;
 import com.doan.model.UserRole;
 import com.doan.services.Sinh_Vien_Service;
+import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.io.StringWriter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/students")
@@ -80,6 +86,53 @@ public class Sinh_Vien_Controller {
 					.body(csvBytes);
 
 		} catch (Exception e) {
+			return ResponseEntity.internalServerError().build();
+		}
+	}
+
+	@PostMapping("/import")
+	public ResponseEntity<Map<String, Object>> importStudents(@RequestBody @RequestParam("file") MultipartFile file) {
+		try {
+			Map<String, Object> response = new HashMap<>();
+			if (file.isEmpty()) {
+				response.put("error", "Please upload a csv file to import");
+			}
+			Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader());
+			List<Sinh_Vien> students = new ArrayList<>();
+			Set<String> existingIds = new HashSet<>(sinhVienService.getAllStudent()
+					.stream()
+					.map(Sinh_Vien::getMa_sinh_vien)
+					.collect(Collectors.toSet()));
+			for (CSVRecord record : parser) {
+				String maSV = record.get("Mã Sinh Viên");
+				String tenSV = record.get("Tên Sinh Viên");
+
+				// Skip if student ID already exists
+				if (existingIds.contains(maSV)) continue;
+
+				// Skip if required fields are missing
+				if (maSV == null || maSV.isEmpty() || tenSV == null || tenSV.isEmpty()) continue;
+
+				Sinh_Vien student = new Sinh_Vien();
+				student.setMa_sinh_vien(maSV);
+				student.setTen_sinh_vien(tenSV);
+				students.add(student);
+				existingIds.add(maSV); // Prevent duplicates in same file
+			}
+
+			parser.close();
+
+			if (!students.isEmpty()) {
+				sinhVienService.addAllStudent(students);
+				response.put("message", "Imported " + students.size() + " students successfully");
+				return ResponseEntity.ok(response);
+			} else {
+				response.put("error", "No valid students found in CSV");
+				return ResponseEntity.badRequest().body(response);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 			return ResponseEntity.internalServerError().build();
 		}
 	}

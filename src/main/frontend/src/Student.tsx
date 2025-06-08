@@ -1,16 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, changeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
 import { Download, Upload } from "lucide-react";
 
 function Students() {
-  const [students, setStudents] = useState([]);
-  const [filterType, setFilterType] = useState("ten_sinh_vien");
-  const [filterValue, setFilterValue] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
-  const [userRole, setUserRole] = useState(null); // Store user role
-  const navigate = useNavigate();
+    const [students, setStudents] = useState([]);
+    const [filterType, setFilterType] = useState("ten_sinh_vien");
+    const [filterValue, setFilterValue] = useState("");
+    const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
+    const [userRole, setUserRole] = useState(null); // Store user role
+    const navigate = useNavigate();
+    const [isImporting, setIsImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState("");
+    const [importError, setImportError] = useState("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [disabledDownload, setDisabledDownload] = useState(false);
 
   // Check session and fetch students
   useEffect(() => {
@@ -44,6 +49,7 @@ function Students() {
       .then((res) => res.json())
       .then((data) => {
         console.log("Students Data:", data);
+        setDisabledDownload(false);
         setStudents(data);
       })
       .catch((error) => console.error("Error fetching students:", error));
@@ -76,40 +82,73 @@ function Students() {
     setFilterValue(e.target.value);
   };
 
-  const handleExportCSV = async () => {
-    if (students.length === 0) {
-      alert("No schedule data to export!");
-      return;
-    }
+    const handleExportCSV = async () => {
+        if (students.length === 0) {
+            alert("No student data to export!");
+            return;
+        }
 
-    try {
-      const response = await fetch(`${API_BASE}/students/export`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(students)
-      });
+        try {
+            const response = await fetch(`${API_BASE}/students/export`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(students)
+            });
 
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+            if (!response.ok) {
+                throw new Error('Export failed');
+            }
 
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `students_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error('Error exporting CSV:', error);
-      alert('Failed to export schedule. Please try again.');
-    }
-  };
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', `students_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+                console.error('Error exporting CSV:', error);
+                alert('Failed to export schedule. Please try again.');
+        }
+    };
+
+    const handleImportCSV = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsImporting(true);
+        setImportMessage("");
+        setImportError("");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+        const response = await fetch(`${API_BASE}/students/import`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setImportMessage(data.message || "Students imported successfully!");
+          fetchStudents(); // Refresh the student list
+        } else {
+          setImportError(data.error || "Failed to import students");
+        }
+        } catch (error) {
+        setImportError("Network error. Please try again.");
+        console.error("Import error:", error);
+        } finally {
+        setIsImporting(false);
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
 
   return (
     <div id="root" className="flex">
@@ -123,13 +162,40 @@ function Students() {
             <div className="result-section">
                 <div className="result-header">
                     <h2>Danh sách sinh viên</h2>
-                        {students.length > 0 && (
-                        <button onClick={handleExportCSV} className="export-button" title="Export as CSV">
+                    <div className="import-export-button-container">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImportCSV}
+                            accept=".csv"
+                            className="hidden"
+                            disabled={isImporting}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isImporting}
+                            className="import-export-button"
+                        >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {isImporting ? "Importing..." : "Import CSV"}
+                        </button>
+                        <button
+                            onClick={handleExportCSV}
+                            title="Export as CSV"
+                            disabled={disabledDownload}
+                            className="import-export-button"
+                        >
                             <Download className="w-4 h-4 mr-2" /> Export CSV
                         </button>
-                        )}
+                    </div>
+                    {importMessage && (
+                    <div className="mt-2 text-green-600">{importMessage}</div>
+                    )}
+                    {importError && (
+                    <div className="mt-2 text-red-500">{importError}</div>
+                    )}
                 </div>
-          {/* Filter Form */}
+           {/* Filter Form */}
           <div className="mb-6 w-full max-w-xs space-y-4">
             <div className="flex items-center">
               <label htmlFor="filterType" className="mr-2 text-lg">Filter By:</label>

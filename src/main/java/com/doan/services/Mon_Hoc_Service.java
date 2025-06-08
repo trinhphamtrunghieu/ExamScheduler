@@ -40,7 +40,7 @@ public class Mon_Hoc_Service {
 		// Iterate through all subjects
 		for (Mon_Hoc subject : allSubjects) {
 			String subjectName = subject.getTenMonHoc();
-
+			if (!subjectNames.contains(subjectName)) continue;
 			// If this subject name is not already in our map, add it
 			// This automatically keeps only the first occurrence of each subject name
 			if (!uniqueSubjectMap.containsKey(subjectName)) {
