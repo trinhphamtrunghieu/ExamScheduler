@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
@@ -180,7 +180,7 @@ function Subjects() {
         const data = await response.json();
         if (response.ok) {
           setImportMessage(data.message || "Subjects imported successfully!");
-          fetchStudents(); // Refresh the student list
+          fetchSubjects(); // Refresh the subject list
         } else {
           setImportError(data.error || "Failed to import subjects");
         }

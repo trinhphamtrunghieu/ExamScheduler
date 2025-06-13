@@ -59,7 +59,7 @@ function Registrations() {
   };
 
   // Filter registrations based on the selected filterType and filterValue
-  const filteredRegistrations = registrations.values().filter((registration) => {
+  const filteredRegistrations = registrations.filter((registration) => {
     if (!filterValue) {
       // If there's no filter value, show all registrations
       return true;
