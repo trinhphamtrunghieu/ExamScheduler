@@ -19,7 +19,7 @@ function Generate() {
   const [hourTo, setHourTo] = useState("");
   const [populationSize, setPopulationSize] = useState(100);
   const [crossoverRate, setCrossoverRate] = useState(0.8);
-  const [mutationRate, setMutationRate] = useState(0.1);
+  const [mutationRate, setMutationRate] = useState(0.25);
   const [maxGenerations, setMaxGenerations] = useState(500);
   const [validationError, setValidationError] = useState("");
   const [maxExamPerDay, setMaxExamPerDay] = useState(5);
@@ -49,13 +49,13 @@ function Generate() {
         fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
           .then((res) => res.json())
           .then((data) => {
-            // Process subjects to ensure unique tenMonHoc values
+            // Process subjects to ensure unique name values
             const uniqueSubjects = [];
             const uniqueSubjectNames = new Set();
 
             data.forEach(sub => {
-              if (!uniqueSubjectNames.has(sub.tenMonHoc)) {
-                uniqueSubjectNames.add(sub.tenMonHoc);
+              if (!uniqueSubjectNames.has(sub.name)) {
+                uniqueSubjectNames.add(sub.name);
                 uniqueSubjects.push(sub);
               }
             });
@@ -93,6 +93,7 @@ function Generate() {
                 }
 
                 const data = await response.json();
+                    console.log(data);
                     return data; // Return successful response data
                 } catch (error) {
                     if (i === retries - 1) {
@@ -157,7 +158,7 @@ function Generate() {
   };
 
   const handleSelectAll = () => {
-    const allSubjects = subjects.map((subject) => subject.tenMonHoc);
+    const allSubjects = subjects.map((subject) => subject.name);
     setSelectedSubjects(allSubjects);
   };
 
@@ -166,6 +167,7 @@ function Generate() {
   };
 
   const requestSort = (key) => {
+    console.log("Sort with: " + key)
     let direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
 
     if (key === 'gio_thi' && sortConfig.key === 'ngay_thi') {
@@ -177,12 +179,12 @@ function Generate() {
 
   const sortedSchedule = [...schedule].sort((a, b) => {
     // First, sort by 'ngay_thi'
-    if (a.ngay_thi < b.ngay_thi) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a.ngay_thi > b.ngay_thi) return sortConfig.direction === 'asc' ? 1 : -1;
+    if (a.date < b.date) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (a.date > b.date) return sortConfig.direction === 'asc' ? 1 : -1;
 
     // If 'ngay_thi' is the same, then sort by 'gio_thi'
-    if (a.gio_thi < b.gio_thi) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a.gio_thi > b.gio_thi) return sortConfig.direction === 'asc' ? 1 : -1;
+    if (a.time < b.time) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (a.time > b.time) return sortConfig.direction === 'asc' ? 1 : -1;
 
     return 0;
   });
@@ -247,8 +249,8 @@ function Generate() {
                 onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt) => opt.value))}
               >
                 {subjects.map((sub) => (
-                  <option key={sub.tenMonHoc} value={sub.tenMonHoc}>
-                    {sub.tenMonHoc}
+                  <option key={sub.name} value={sub.name}>
+                    {sub.name}
                   </option>
                 ))}
               </select>
@@ -336,7 +338,6 @@ function Generate() {
                 <table>
                   <thead>
                     <tr>
-                      <th onClick={() => requestSort('ma_mon_hoc')}>Mã Môn Học</th>
                       <th onClick={() => requestSort('ten_mon_hoc')}>Tên Môn Học</th>
                       <th onClick={() => requestSort('ngay_thi')}>Ngày Thi</th>
                       <th onClick={() => requestSort('gio_thi')}>Giờ Bắt Đầu Thi</th>
@@ -348,12 +349,11 @@ function Generate() {
                     {sortedSchedule.length > 0 ? (
                       sortedSchedule.map((exam, index) => (
                         <tr key={index}>
-                          <td>{exam.ma_mon_hoc}</td>
-                          <td>{exam.ten_mon_hoc || "N/A"}</td>
-                          <td>{exam.ngay_thi}</td>
-                          <td>{exam.gio_thi}</td>
-                          <td>{exam.gio_ket_thuc}</td>
-                          <td>{exam.thoi_luong_thi} phút</td>
+                          <td>{exam.subjectName || "N/A"}</td>
+                          <td>{exam.date}</td>
+                          <td>{exam.time}</td>
+                          <td>{exam.endTime}</td>
+                          <td>{exam.subject.duration} phút</td>
                         </tr>
                       ))
                     ) : (

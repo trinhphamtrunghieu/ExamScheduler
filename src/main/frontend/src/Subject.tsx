@@ -1,18 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { useNavigate } from "react-router-dom";
 import { Download, Upload } from "lucide-react";
 
 function Subjects() {
-  const [subjects, setSubjects] = useState([]);
-  const [isImporting, setIsImporting] = useState(false);
-  const [filterType, setFilterType] = useState("tenMonHoc"); // Default filter by subject name
-  const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
-  const [sortConfig, setSortConfig] = useState({ key: 'maMonHoc', direction: 'asc' });
-  const [availableExamDurations, setAvailableExamDurations] = useState([]); // To hold unique exam durations
-  const [userRole, setUserRole] = useState(null); // To store user role (if user is a professor)
-  const navigate = useNavigate();
+    const [subjects, setSubjects] = useState([]);
+    const [filterType, setFilterType] = useState("name"); // Default filter by subject name
+    const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
+    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+    const [availableExamDurations, setAvailableExamDurations] = useState([]); // To hold unique exam durations
+    const [userRole, setUserRole] = useState(null); // To store user role (if user is a professor)
+    const navigate = useNavigate();
+    const [isImporting, setIsImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState("");
+    const [importError, setImportError] = useState("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [disabledDownload, setDisabledDownload] = useState(false);
 
   // Check session and fetch subjects
   useEffect(() => {
@@ -51,7 +55,7 @@ function Subjects() {
         setSubjects(data);
 
         // Extract unique exam durations from the subjects data
-        const durations = [...new Set(data.map(s => s.thoi_luong_thi))];
+        const durations = [...new Set(data.map(s => s.duration))];
         setAvailableExamDurations(durations); // Set available exam durations for filter
       })
       .catch((error) => console.error("Error fetching subjects:", error));
@@ -71,17 +75,17 @@ function Subjects() {
       return true;
     }
 
-    if (filterType === "ngay_bat_dau" || filterType === "ngay_ket_thuc") {
+    if (filterType === "startDate" || filterType === "endDate") {
       // For date filters, convert the value to a Date and compare
       const filterDate = new Date(filterValue);
       const subjectDate = new Date(subject[filterType]);
 
-      if (filterType === "ngay_bat_dau") {
+      if (filterType === "startDate") {
         return subjectDate >= filterDate; // Filter for subjects starting from the selected date
-      } else if (filterType === "ngay_ket_thuc") {
+      } else if (filterType === "endDate") {
         return subjectDate <= filterDate; // Filter for subjects ending before the selected date
       }
-    } else if (filterType === "thoi_luong_thi") {
+    } else if (filterType === "duration") {
       // For duration filter, compare values (ensure it's a positive number)
       return subject[filterType] == filterValue; // Exact match for exam duration
     } else {
@@ -113,7 +117,7 @@ function Subjects() {
   // Handle filter value change with validation for Thời Lượng Thi
   const handleFilterValueChange = (e) => {
     const value = e.target.value;
-    if (filterType === "thoi_luong_thi") {
+    if (filterType === "duration") {
       // Allow only positive numbers or values from the available options
       if (availableExamDurations.includes(Number(value)) || value === "") {
         setFilterValue(value);
@@ -157,6 +161,38 @@ function Subjects() {
     }
   };
 
+    const handleImportCSV = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsImporting(true);
+        setImportMessage("");
+        setImportError("");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+        const response = await fetch(`${API_BASE}/subjects/import`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setImportMessage(data.message || "Subjects imported successfully!");
+          fetchStudents(); // Refresh the student list
+        } else {
+          setImportError(data.error || "Failed to import subjects");
+        }
+        } catch (error) {
+        setImportError("Network error. Please try again.");
+        console.error("Import error:", error);
+        } finally {
+        setIsImporting(false);
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
 
   return (
     <div id="root" className="flex">
@@ -169,12 +205,39 @@ function Subjects() {
         <div className="p-6 bg-gray-50 min-h-screen flex flex-col items-center">
             <div className="result-section">
                 <div className="result-header">
-                    <h2>Danh sách môn học</h2>
-                        {subjects.length > 0 && (
-                        <button onClick={handleExportCSV} className="export-button" title="Export as CSV">
+                    <h2> Danh sách môn học </h2>
+                    <div className="import-export-button-container">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImportCSV}
+                            accept=".csv"
+                            className="hidden"
+                            disabled={isImporting}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isImporting}
+                            className="import-export-button"
+                        >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {isImporting ? "Importing..." : "Import CSV"}
+                        </button>
+                        <button
+                            onClick={handleExportCSV}
+                            title="Export as CSV"
+                            disabled={disabledDownload}
+                            className="import-export-button"
+                        >
                             <Download className="w-4 h-4 mr-2" /> Export CSV
                         </button>
-                        )}
+                    </div>
+                    {importMessage && (
+                    <div className="mt-2 text-green-600">{importMessage}</div>
+                    )}
+                    {importError && (
+                    <div className="mt-2 text-red-500">{importError}</div>
+                    )}
                 </div>
                 {/* Filter Form */}
                 <div className="mb-6 w-full max-w-xs space-y-4">
@@ -184,16 +247,16 @@ function Subjects() {
                                 onChange={(e) => setFilterType(e.target.value)}
                                 className="p-2 border border-gray-300 rounded-lg"
                         >
-                            <option value="tenMonHoc">Tên Môn Học</option>
-                            <option value="maMonHoc">Mã Môn Học</option>
-                            <option value="ngay_bat_dau">Ngày Bắt Đầu</option>
-                            <option value="ngay_ket_thuc">Ngày Kết Thúc</option>
+                            <option value="name">Tên Môn Học</option>
+                            <option value="id">Mã Môn Học</option>
+                            <option value="startDate">Ngày Bắt Đầu</option>
+                            <option value="endDate">Ngày Kết Thúc</option>
                             <option value="ten_gv_dung_lop">Giảng Viên</option>
-                            <option value="thoi_luong_thi">Thời Lượng Thi</option> {/* Added Thời Lượng Thi */}
+                            <option value="duration">Thời Lượng Thi</option> {/* Added Thời Lượng Thi */}
                         </select>
                     </div>
                     {/* Filter Value */}
-                    {filterType === "ngay_bat_dau" || filterType === "ngay_ket_thuc" ? (
+                    {filterType === "startDate" || filterType === "endDate" ? (
                     <div className="flex items-center">
                         <label htmlFor="filterValue" className="mr-2 text-lg">Select Date:</label>
                         <input type="date" id="filterValue" value={filterValue}
@@ -201,7 +264,7 @@ function Subjects() {
                             className="p-2 border border-gray-300 rounded-lg"
                         />
                     </div>
-                    ) : filterType === "thoi_luong_thi" ? (
+                    ) : filterType === "duration" ? (
                     <div className="flex items-center">
                         <label htmlFor="filterValue" className="mr-2 text-lg">Select Duration (minutes):</label>
                         <select id="filterValue" value={filterValue}
@@ -218,7 +281,7 @@ function Subjects() {
                     <div className="flex items-center">
                         <label htmlFor="filterValue" className="mr-2 text-lg">Enter Value:</label>
                         <input type="text" id="filterValue"
-                            placeholder={`Enter ${filterType === 'tenMonHoc' ? 'Subject Name' : filterType === 'ten_gv_dung_lop' ? 'Instructor Name' : 'Subject Code'}`}
+                            placeholder={`Enter ${filterType === 'name' ? 'Subject Name' : filterType === 'ten_gv_dung_lop' ? 'Instructor Name' : 'Subject Code'}`}
                             value={filterValue}
                             onChange={(e) => setFilterValue(e.target.value)}
                             className="p-2 border border-gray-300 rounded-lg"
@@ -230,16 +293,16 @@ function Subjects() {
           <table className="min-w-full table-auto border-collapse bg-white rounded-lg shadow-lg overflow-hidden">
             <thead className="bg-indigo-600 text-white">
               <tr>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('maMonHoc')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('id')}>
                   Mã Môn Học
                   <span className="ml-2">
-                    {sortConfig.key === 'maMonHoc' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                    {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('tenMonHoc')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('name')}>
                   Tên Môn Học
                   <span className="ml-2">
-                    {sortConfig.key === 'tenMonHoc' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                    {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
                 <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('ten_gv_dung_lop')}>
@@ -248,22 +311,22 @@ function Subjects() {
                     {sortConfig.key === 'ten_gv_dung_lop' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('ngay_bat_dau')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('startDate')}>
                   Ngày Bắt Đầu
                   <span className="ml-2">
-                    {sortConfig.key === 'ngay_bat_dau' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                    {sortConfig.key === 'startDate' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('ngay_ket_thuc')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('endDate')}>
                   Ngày Kết Thúc
                   <span className="ml-2">
-                    {sortConfig.key === 'ngay_ket_thuc' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                    {sortConfig.key === 'endDate' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('thoi_luong_thi')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('duration')}>
                   Thời Lượng Thi
                   <span className="ml-2">
-                    {sortConfig.key === 'thoi_luong_thi' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                    {sortConfig.key === 'duration' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                   </span>
                 </th>
               </tr>
@@ -271,13 +334,13 @@ function Subjects() {
             <tbody className="text-gray-800">
               {sortedSubjects.length > 0 ? (
                 sortedSubjects.map((s) => (
-                  <tr key={s.maMonHoc} className="hover:bg-gray-100">
-                    <td className="px-6 py-3 border-b">{s.maMonHoc}</td>
-                    <td className="px-6 py-3 border-b">{s.tenMonHoc}</td>
+                  <tr key={s.id} className="hover:bg-gray-100">
+                    <td className="px-6 py-3 border-b">{s.id}</td>
+                    <td className="px-6 py-3 border-b">{s.name}</td>
                     <td className="px-6 py-3 border-b">{s.ten_gv_dung_lop}</td>
-                    <td className="px-6 py-3 border-b">{formatDate(s.ngay_bat_dau)}</td>
-                    <td className="px-6 py-3 border-b">{formatDate(s.ngay_ket_thuc)}</td>
-                    <td className="px-6 py-3 border-b">{s.thoi_luong_thi} phút</td>
+                    <td className="px-6 py-3 border-b">{formatDate(s.startDate)}</td>
+                    <td className="px-6 py-3 border-b">{formatDate(s.endDate)}</td>
+                    <td className="px-6 py-3 border-b">{s.duration} phút</td>
                   </tr>
                 ))
               ) : (

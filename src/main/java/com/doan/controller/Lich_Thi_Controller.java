@@ -3,6 +3,8 @@ package com.doan.controller;
 import com.doan.dto.Lich_Thi;
 import com.doan.dto.Lich_Thi_DTO;
 import com.doan.dto.Lich_Thi_Option;
+import com.doan.model.Schedule;
+import com.doan.model.Subject;
 import com.doan.model.UserRole;
 import com.doan.services.ExamSchedulerService;
 import com.doan.services.ExamSchedulerService2;
@@ -37,21 +39,21 @@ public class Lich_Thi_Controller {
 			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 			}
-			List<Lich_Thi> result = schedulerService.generateExamSchedule(options);
-			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(result);
-			String conflict_check = schedulerService.evaluate(ldto, options);
+			List<Schedule> result = schedulerService.generateExamSchedule(options);
+//			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(result);
+			String conflict_check = schedulerService.evaluate(result);
 			if (!conflict_check.isEmpty()) {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", conflict_check);
-				response.put("data", ldto);
+				response.put("data", result);
 				System.out.println(conflict_check);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			} else {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "success");
-				response.put("data", ldto);
-				schedulerService.saveToDB(ldto);
+				response.put("data", result);
+//				schedulerService.saveToDB(ldto);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			}
@@ -67,21 +69,21 @@ public class Lich_Thi_Controller {
 			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 			}
-			List<Lich_Thi> lich_thi = schedulerService2.generateExamSchedule(options);
-			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(lich_thi);
-			String conflict_check = schedulerService.evaluate(ldto, options);
-			if (!conflict_check.isEmpty()) {
+			List<Schedule> schedule = schedulerService2.generateExamSchedule(options);
+			String conflict_check = "";
+			boolean is_conflict = schedulerService2.validateSchedule(conflict_check, schedule, schedulerService2.cur_registration);
+			if (!is_conflict) {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", conflict_check);
-				response.put("data", ldto);
+				response.put("data", schedule);
 				System.out.println(conflict_check);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			} else {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "success");
-				response.put("data", ldto);
-				schedulerService.saveToDB(ldto);
+				response.put("data", schedule);
+//				schedulerService.saveToDB(ldto);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			}
@@ -104,13 +106,13 @@ public class Lich_Thi_Controller {
 
 			// Write data rows
 			for (Map<String, Object> exam : schedule) {
+				System.out.println(exam.get("subject"));
 				String[] row = {
-						String.valueOf(exam.get("ma_mon_hoc")),
-						String.valueOf(exam.get("ten_mon_hoc")),
-						String.valueOf(exam.get("ngay_thi")),
-						String.valueOf(exam.get("gio_thi")),
-						String.valueOf(exam.get("gio_ket_thuc")),
-						String.valueOf(exam.get("thoi_luong_thi")) + " phút"
+						String.valueOf(exam.get("id")),
+						String.valueOf(exam.get("subjectName")),
+						String.valueOf(exam.get("date")),
+						String.valueOf(exam.get("time")),
+						String.valueOf(exam.get("endTime")),
 				};
 				csvWriter.writeNext(row);
 			}
@@ -129,7 +131,9 @@ public class Lich_Thi_Controller {
 					.body(csvBytes);
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			return ResponseEntity.internalServerError().build();
 		}
 	}
+
 }

@@ -142,7 +142,7 @@ function Configuration() {
                             className="flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
                             >
                             <Upload className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Importing..." : "Import All Data"}
+                            {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
                             </button>
 
                             <button
@@ -151,7 +151,7 @@ function Configuration() {
                             className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
                             >
                             <Download className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Exporting..." : "Export All Data"}
+                            {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
                             </button>
                             <button
                                 onClick={handleSaveConfig}
@@ -159,7 +159,7 @@ function Configuration() {
                                 className="flex items-center justify-center p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg w-full"
                             >
                             <span className="ml-2">
-                                {isSaving ? "Saving..." : "Save Data to DB"}
+                                {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
                             </span>
                             </button>
                         </div>

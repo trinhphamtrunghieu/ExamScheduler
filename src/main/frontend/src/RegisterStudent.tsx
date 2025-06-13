@@ -73,7 +73,7 @@ function RegisterStudent() {
 
   // Select all courses
   const selectAllCourses = () => {
-    setSelectedCourses(courses.map((course) => course.maMonHoc));
+    setSelectedCourses(courses.map((course) => course.id));
   };
 
   // Deselect all courses
@@ -151,22 +151,22 @@ function RegisterStudent() {
             <ul className="mt-4 space-y-4">
               {courses.map((course) => (
                 <li
-                  key={course.maMonHoc}
+                  key={course.id}
                   className="flex items-center space-x-3 cursor-pointer"
-                  onClick={() => toggleCourseSelection(course.maMonHoc)} // Add click handler to the entire list item
+                  onClick={() => toggleCourseSelection(course.id)} // Add click handler to the entire list item
                 >
                   <input
                     type="checkbox"
-                    id={`course-${course.maMonHoc}`} // Unique ID for the checkbox
-                    checked={selectedCourses.includes(course.maMonHoc)}
-                    onChange={() => toggleCourseSelection(course.maMonHoc)} // Keeps checkbox toggle functionality
+                    id={`course-${course.id}`} // Unique ID for the checkbox
+                    checked={selectedCourses.includes(course.id)}
+                    onChange={() => toggleCourseSelection(course.id)} // Keeps checkbox toggle functionality
                     className="w-5 h-5"
                   />
                   <label
-                    htmlFor={`course-${course.maMonHoc}`} // Associate the label with the checkbox
+                    htmlFor={`course-${course.id}`} // Associate the label with the checkbox
                     className="text-sm font-medium"
                   >
-                    {course.maMonHoc} - {course.tenMonHoc}
+                    {course.id} - {course.name}
                   </label>
                 </li>
               ))}

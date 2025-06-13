@@ -1,5 +1,6 @@
 package com.doan.controller;
 
+import com.doan.common.Helper;
 import com.doan.dto.Dang_Ky;
 import com.doan.dto.Mon_Hoc;
 import com.doan.dto.Sinh_Vien;
@@ -11,6 +12,7 @@ import com.doan.repository.Dang_Ky_Repository;
 import com.doan.repository.Lich_Thi_Repository;
 import com.doan.repository.Mon_Hoc_Repository;
 import com.doan.repository.Sinh_Vien_Repository;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStreamReader;
+import java.security.InvalidParameterException;
 import java.sql.Date;
 import java.util.*;
 
@@ -65,15 +69,20 @@ public class ConfigurationController {
 
 	@PostMapping("/import")
 	public ResponseEntity<Map<String, Object>> importRegistration(@RequestBody @RequestParam("file") MultipartFile file) {
+		Map<String, Object> response = new HashMap<>();
 		try {
-			Map<String, Object> response = new HashMap<>();
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			cache.importAll(file.getInputStream(), true);
+			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream()),
+					Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"));
+			cache.importAll(records, true);
 			response.put("message", "Imported successfully");
 			return ResponseEntity.ok(response);
-		} catch (Exception e) {
+		} catch (IllegalStateException ex) {
+			response.put("error", "Required field: MSSV, Họ tên, Mã lớp học, Môn học, Giáo viên");
+			return ResponseEntity.badRequest().body(response);
+	    } catch (Exception e) {
 			e.printStackTrace();
 			return ResponseEntity.internalServerError().build();
 		}

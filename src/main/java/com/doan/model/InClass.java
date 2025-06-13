@@ -1,11 +1,21 @@
 package com.doan.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class InClass {
 	String id;
+
+	@JsonIgnore
 	List<Student> studentList = new ArrayList<Student>();
+
+	public InClass() {}
 
 	public InClass(String id) {
 		this.id = id;

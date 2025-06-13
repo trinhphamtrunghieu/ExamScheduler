@@ -1,6 +1,7 @@
 package com.doan.services;
 
 import com.doan.dto.*;
+import com.doan.model.*;
 import com.doan.repository.Dang_Ky_Repository;
 import com.doan.repository.Mon_Hoc_Repository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,25 +17,27 @@ import java.util.stream.IntStream;
 
 @Service
 public class ExamSchedulerService2 {
-
-	@Autowired
-	private Mon_Hoc_Repository monHocRepository;
-
-	@Autowired
-	private Dang_Ky_Repository dangKyRepository;
-
+	public List<Registration> cur_registration = new ArrayList<>();
 	/**
 	 * Generates exam schedule with minimum number of groups (time slots)
 	 */
-	public List<Lich_Thi> generateExamSchedule(Lich_Thi_Option options) {
+	public List<Schedule> generateExamSchedule(Lich_Thi_Option options) {
 		// 1. Load subjects and registrations
-		List<Mon_Hoc> subjects = monHocRepository.findByTenMonHocIn(options.getSelectedSubjects());
-		List<Dang_Ky> registrations = dangKyRepository.findDangKyByTenMonHocIn(options.getSelectedSubjects());
-
+		Cache cache = Cache.cache;
+		List<Subject> subjects = cache.subjects.entrySet()
+				.stream()
+				.filter(entry -> options.getSelectedSubjects().contains(entry.getValue().name))
+				.map(Map.Entry::getValue)
+				.collect(Collectors.toList());
+		List<Registration> registrations = new ArrayList<>();
+		for (Student student : cache.students.values()) {
+			registrations.addAll(student.registrations);
+		}
+		cur_registration = registrations;
 		// 2. Build index maps
 		Map<String, Integer> subjectToIndex = buildSubjectIndexMap(subjects);
 		Map<Integer, String> indexToSubject = buildIndexToSubjectMap(subjectToIndex);
-		Map<String, Mon_Hoc> nameToSubject = buildNameToSubjectMap(subjects);
+		Map<String, Subject> nameToSubject = buildNameToSubjectMap(subjects);
 
 		// 3. Build conflict graph
 		List<Set<Integer>> conflictGraph = buildConflictGraph(registrations, subjectToIndex);
@@ -44,7 +47,6 @@ public class ExamSchedulerService2 {
 
 		// 5. Generate available time slots
 		List<LocalDateTime> availableSlots = generateAvailableTimeSlots(options);
-
 		// 6. Create exam schedule
 		return createExamSchedule(subjectToGroup, indexToSubject, nameToSubject, availableSlots);
 	}
@@ -52,11 +54,11 @@ public class ExamSchedulerService2 {
 	/**
 	 * Builds subject name to index mapping
 	 */
-	private Map<String, Integer> buildSubjectIndexMap(List<Mon_Hoc> subjects) {
+	private Map<String, Integer> buildSubjectIndexMap(List<Subject> subjects) {
 		Map<String, Integer> subjectToIndex = new HashMap<>();
 		int count = 0;
-		for (Mon_Hoc subject : subjects) {
-			String name = subject.getTenMonHoc();
+		for (Subject subject : subjects) {
+			String name = subject.getName();
 			if (!subjectToIndex.containsKey(name)) {
 				subjectToIndex.put(name, count++);
 			}
@@ -75,15 +77,15 @@ public class ExamSchedulerService2 {
 	/**
 	 * Builds subject name to Mon_Hoc object mapping
 	 */
-	private Map<String, Mon_Hoc> buildNameToSubjectMap(List<Mon_Hoc> subjects) {
+	private Map<String, Subject> buildNameToSubjectMap(List<Subject> subjects) {
 		return subjects.stream()
-				.collect(Collectors.toMap(Mon_Hoc::getTenMonHoc, subject -> subject, (a, b) -> a));
+				.collect(Collectors.toMap(Subject::getName, subject -> subject, (a, b) -> a));
 	}
 
 	/**
 	 * Builds conflict graph representing which subjects cannot be scheduled together
 	 */
-	private List<Set<Integer>> buildConflictGraph(List<Dang_Ky> registrations,
+	private List<Set<Integer>> buildConflictGraph(List<Registration> registrations,
 	                                              Map<String, Integer> subjectToIndex) {
 		int subjectCount = subjectToIndex.size();
 		List<Set<Integer>> conflictGraph = new ArrayList<>(subjectCount);
@@ -94,8 +96,8 @@ public class ExamSchedulerService2 {
 		// Group registrations by student
 		Map<String, List<String>> studentCourses = registrations.stream()
 				.collect(Collectors.groupingBy(
-						Dang_Ky::getMa_sinh_vien,
-						Collectors.mapping(Dang_Ky::getTenMonHoc, Collectors.toList())
+						Registration::getMa_sinh_vien,
+						Collectors.mapping(Registration::getTen_mon_hoc, Collectors.toList())
 				));
 
 		// Add conflicts between subjects taken by the same student
@@ -196,11 +198,11 @@ public class ExamSchedulerService2 {
 	/**
 	 * Creates the final exam schedule from the coloring result
 	 */
-	private List<Lich_Thi> createExamSchedule(Map<Integer, Integer> subjectToGroup,
+	private List<Schedule> createExamSchedule(Map<Integer, Integer> subjectToGroup,
 	                                          Map<Integer, String> indexToSubject,
-	                                          Map<String, Mon_Hoc> nameToSubject,
+	                                          Map<String, Subject> nameToSubject,
 	                                          List<LocalDateTime> availableSlots) {
-		List<Lich_Thi> result = new ArrayList<>();
+		List<Schedule> result = new ArrayList<>();
 
 		// Group subjects by their assigned group (color)
 		Map<Integer, List<Integer>> groupToSubjects = subjectToGroup.entrySet().stream()
@@ -227,14 +229,13 @@ public class ExamSchedulerService2 {
 
 			for (int subjectIndex : groupToSubjects.get(group)) {
 				String subjectName = indexToSubject.get(subjectIndex);
-				Mon_Hoc subject = nameToSubject.get(subjectName);
+				Subject subject = nameToSubject.get(subjectName);
 
-				Lich_Thi exam = new Lich_Thi();
-				exam.setMonHoc(subject);
-				exam.setTen_mon_hoc(subjectName);
-				exam.setNgay_thi(java.sql.Date.valueOf(slotTime.toLocalDate()));
-				exam.setGio_thi(Time.valueOf(slotTime.toLocalTime()));
-				exam.setPhong_thi("to be implement");
+				Schedule exam = new Schedule(subjectName,
+						java.sql.Date.valueOf(slotTime.toLocalDate()),
+						Time.valueOf(slotTime.toLocalTime()),
+						subject,
+						"to be implement");
 
 				result.add(exam);
 			}
@@ -259,16 +260,18 @@ public class ExamSchedulerService2 {
 	/**
 	 * Validates the scheduling result - ensures no conflicts exist
 	 */
-	public boolean validateSchedule(List<Lich_Thi> schedule, List<Dang_Ky> registrations) {
+	public boolean validateSchedule(String conflict_res, List<Schedule> schedule, List<Registration> registrations) {
 		// Group exams by date and time
-		Map<String, List<Lich_Thi>> timeSlotGroups = schedule.stream()
+		String result = "";
+		Map<String, List<Schedule>> timeSlotGroups = schedule.stream()
 				.collect(Collectors.groupingBy(exam ->
-						exam.getNgay_thi().toString() + "_" + exam.getGio_thi().toString()
+						exam.getDate().toString() + "_" + exam.getTime().toString()
 				));
 
 		// Check for conflicts in each time slot
-		for (List<Lich_Thi> examsInSlot : timeSlotGroups.values()) {
-			if (hasConflict(examsInSlot, registrations)) {
+		for (List<Schedule> examsInSlot : timeSlotGroups.values()) {
+			if (hasConflict(result, examsInSlot, registrations)) {
+				conflict_res = result;
 				return false;
 			}
 		}
@@ -278,15 +281,16 @@ public class ExamSchedulerService2 {
 	/**
 	 * Checks if a list of exams has any student conflicts
 	 */
-	private boolean hasConflict(List<Lich_Thi> exams, List<Dang_Ky> registrations) {
+	private boolean hasConflict(String res, List<Schedule> exams, List<Registration> registrations) {
+		StringBuilder sb = new StringBuilder();
 		Set<String> subjectsInSlot = exams.stream()
-				.map(Lich_Thi::getTen_mon_hoc)
+				.map(Schedule::getSubjectName)
 				.collect(Collectors.toSet());
 
 		Map<String, List<String>> studentSubjects = registrations.stream()
 				.collect(Collectors.groupingBy(
-						Dang_Ky::getMa_sinh_vien,
-						Collectors.mapping(Dang_Ky::getTenMonHoc, Collectors.toList())
+						Registration::getMa_sinh_vien,
+						Collectors.mapping(Registration::getTen_mon_hoc, Collectors.toList())
 				));
 
 		// Check if any student is registered for multiple subjects in this slot
@@ -295,9 +299,10 @@ public class ExamSchedulerService2 {
 					.filter(subjectsInSlot::contains)
 					.count();
 			if (conflictCount > 1) {
-				return true; // Conflict found
+				sb.append(studentCourses);
 			}
 		}
+		res = sb.toString();
 		return false;
 	}
 }

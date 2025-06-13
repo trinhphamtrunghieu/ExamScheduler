@@ -1,6 +1,8 @@
 package com.doan.controller;
 
 import com.doan.dto.Sinh_Vien;
+import com.doan.model.Cache;
+import com.doan.model.Student;
 import com.doan.model.UserRole;
 import com.doan.services.Sinh_Vien_Service;
 import com.opencsv.CSVReader;
@@ -31,9 +33,11 @@ public class Sinh_Vien_Controller {
 	private Sinh_Vien_Service sinhVienService;
 
 	@GetMapping("/list")
-	public ResponseEntity<List<Sinh_Vien>> getAllStudent(HttpSession session) {
+	public ResponseEntity<List<Student>> getAllStudent(HttpSession session) {
 		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
-			List<Sinh_Vien> result = sinhVienService.getAllStudent();
+			Cache cache = Cache.cache;
+			List<Student> result = new ArrayList<>();
+			result.addAll(cache.students.values());
 			return ResponseEntity.ok(result);
 		}
 		return ResponseEntity.badRequest().build();
@@ -60,14 +64,14 @@ public class Sinh_Vien_Controller {
 			CSVWriter csvWriter = new CSVWriter(stringWriter);
 
 			// Write header
-			String[] header = {"Mã Sinh Viên", "Tên Sinh Viên"};
+			String[] header = {"MSSV", "Họ tên"};
 			csvWriter.writeNext(header);
 
 			// Write data rows
 			for (Map<String, Object> student : students) {
 				String[] row = {
-						String.valueOf(student.get("ma_sinh_vien")),
-						String.valueOf(student.get("ten_sinh_vien"))
+						String.valueOf(student.get("id")),
+						String.valueOf(student.get("name"))
 				};
 				csvWriter.writeNext(row);
 			}
@@ -98,15 +102,16 @@ public class Sinh_Vien_Controller {
 				response.put("error", "Please upload a csv file to import");
 			}
 			Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader());
-			List<Sinh_Vien> students = new ArrayList<>();
-			Set<String> existingIds = new HashSet<>(sinhVienService.getAllStudent()
+			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader().withIgnoreHeaderCase());
+			List<Student> students = new ArrayList<>();
+			Cache cache = Cache.cache;
+			Set<String> existingIds = new HashSet<>(cache.students.values()
 					.stream()
-					.map(Sinh_Vien::getMa_sinh_vien)
+					.map(Student::getId)
 					.collect(Collectors.toSet()));
 			for (CSVRecord record : parser) {
-				String maSV = record.get("Mã Sinh Viên");
-				String tenSV = record.get("Tên Sinh Viên");
+				String maSV = record.get("MSSV");
+				String tenSV = record.get("Họ tên");
 
 				// Skip if student ID already exists
 				if (existingIds.contains(maSV)) continue;
@@ -114,9 +119,9 @@ public class Sinh_Vien_Controller {
 				// Skip if required fields are missing
 				if (maSV == null || maSV.isEmpty() || tenSV == null || tenSV.isEmpty()) continue;
 
-				Sinh_Vien student = new Sinh_Vien();
-				student.setMa_sinh_vien(maSV);
-				student.setTen_sinh_vien(tenSV);
+				Student student = new Student();
+				student.setId(maSV);
+				student.setName(tenSV);
 				students.add(student);
 				existingIds.add(maSV); // Prevent duplicates in same file
 			}
@@ -124,7 +129,7 @@ public class Sinh_Vien_Controller {
 			parser.close();
 
 			if (!students.isEmpty()) {
-				sinhVienService.addAllStudent(students);
+				cache.addStudent(students);
 				response.put("message", "Imported " + students.size() + " students successfully");
 				return ResponseEntity.ok(response);
 			} else {

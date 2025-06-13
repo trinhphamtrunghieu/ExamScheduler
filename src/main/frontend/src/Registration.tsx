@@ -59,7 +59,7 @@ function Registrations() {
   };
 
   // Filter registrations based on the selected filterType and filterValue
-  const filteredRegistrations = registrations.filter((registration) => {
+  const filteredRegistrations = registrations.values().filter((registration) => {
     if (!filterValue) {
       // If there's no filter value, show all registrations
       return true;
@@ -106,7 +106,7 @@ function Registrations() {
 
         try {
             const response = await fetch(
-                `${API_BASE}/registrations/export`, {
+                `${API_BASE}/config/export`, {
                     method: 'POST',
                     headers: {
                     'Content-Type': 'application/json',
@@ -142,7 +142,7 @@ function Registrations() {
         formData.append("file", file);
 
         try {
-            const response = await fetch(`${API_BASE}/registrations/import`, {
+            const response = await fetch(`${API_BASE}/config/import`, {
               method: "POST",
               credentials: "include",
               body: formData,

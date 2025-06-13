@@ -6,9 +6,9 @@ import { Download, Upload } from "lucide-react";
 
 function Students() {
     const [students, setStudents] = useState([]);
-    const [filterType, setFilterType] = useState("ten_sinh_vien");
+    const [filterType, setFilterType] = useState("name");
     const [filterValue, setFilterValue] = useState("");
-    const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
     const [userRole, setUserRole] = useState(null); // Store user role
     const navigate = useNavigate();
     const [isImporting, setIsImporting] = useState(false);
@@ -205,8 +205,8 @@ function Students() {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="p-2 border border-gray-300 rounded-lg"
               >
-                <option value="ten_sinh_vien">Tên Sinh Viên</option>
-                <option value="ma_sinh_vien">Mã Sinh Viên</option>
+                <option value="name">Tên Sinh Viên</option>
+                <option value="id">Mã Sinh Viên</option>
               </select>
             </div>
 
@@ -216,7 +216,7 @@ function Students() {
               <input
                 type="text"
                 id="filterValue"
-                placeholder={`Enter ${filterType === 'ten_sinh_vien' ? 'Student Name' : 'Student Code'}`}
+                placeholder={`Enter ${filterType === 'name' ? 'Student Name' : 'Student Code'}`}
                 value={filterValue}
                 onChange={handleFilterValueChange}
                 className="p-2 border border-gray-300 rounded-lg"
@@ -227,22 +227,22 @@ function Students() {
           <table className="min-w-full table-auto border-collapse bg-white rounded-lg shadow-lg overflow-hidden">
             <thead className="bg-indigo-600 text-white">
               <tr>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('ma_sinh_vien')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('id')}>
                   Mã Sinh Viên
-                  <span className="ml-2">{sortConfig.key === 'ma_sinh_vien' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}</span>
+                  <span className="ml-2">{sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}</span>
                 </th>
-                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('ten_sinh_vien')}>
+                <th className="px-6 py-4 text-left cursor-pointer hover:bg-indigo-700" onClick={() => requestSort('name')}>
                   Tên Sinh Viên
-                  <span className="ml-2">{sortConfig.key === 'ten_sinh_vien' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}</span>
+                  <span className="ml-2">{sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '🔼' : '🔽') : '↕️'}</span>
                 </th>
               </tr>
             </thead>
             <tbody className="text-gray-800">
               {sortedStudents.length > 0 ? (
                 sortedStudents.map((s) => (
-                  <tr key={s.ma_sinh_vien} className="hover:bg-gray-100">
-                    <td className="px-6 py-3 border-b">{s.ma_sinh_vien}</td>
-                    <td className="px-6 py-3 border-b">{s.ten_sinh_vien}</td>
+                  <tr key={s.id} className="hover:bg-gray-100">
+                    <td className="px-6 py-3 border-b">{s.id}</td>
+                    <td className="px-6 py-3 border-b">{s.name}</td>
                   </tr>
                 ))
               ) : (

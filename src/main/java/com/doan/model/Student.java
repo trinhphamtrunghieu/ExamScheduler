@@ -1,14 +1,26 @@
 package com.doan.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class Student {
 	public String name;
 	public String id;
 	public InClass inClass;
 
+	@JsonIgnore
 	public List<Subject> participateIn = new ArrayList<>();
+
+	@JsonIgnore
+	public List<Registration> registrations = new ArrayList<>();
+
+	public Student() {}
 
 	public Student(String id, String name) {
 		this.name = name;
@@ -31,7 +43,10 @@ public class Student {
 
 
 	public void assignToClass(InClass inClass) {
-		inClass.studentList.add(this);
+		if (this.inClass != null && this.inClass.studentList.contains(this)){
+			this.inClass.studentList.remove(this);
+		}
+ 		inClass.studentList.add(this);
 		this.inClass = inClass;
 	}
 
@@ -39,6 +54,13 @@ public class Student {
 		if (participateIn.contains(subject)) return;
 		this.participateIn.add(subject);
 		subject.studentList.add(this);
+		Registration registration = new Registration();
+		registration.setMa_sinh_vien(this.id);
+		registration.setTen_sinh_vien(this.name);
+		registration.setMa_mon_hoc(subject.id);
+		registration.setTen_mon_hoc(subject.name);
+		registration.setTen_giang_vien(subject.teacher);
+		registrations.add(registration);
 	}
 
 	@Override
