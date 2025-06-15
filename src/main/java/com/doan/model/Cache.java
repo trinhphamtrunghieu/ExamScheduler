@@ -18,12 +18,12 @@ public class Cache {
 	public volatile Map<String, Subject> subjects = new HashMap<>();
 	public volatile Map<String, InClass> classes = new HashMap<>();
 	public static Cache cache = new Cache();
+	private final String dataFile = "./data.csv";
 
 	private Cache(){};
 
 	public void initialize() {
-		String input = "/home/lap14604/Downloads/UIT/do_an/exam-schedule-generator/Tram_registration_2024_2025.csv";
-		File file = new File(input);
+		File file = new File(dataFile);
 		try {
 			List<CSVRecord> records = Helper.parseCSVFromValidHeader(
 					new InputStreamReader(new FileInputStream(file)),
@@ -32,6 +32,17 @@ public class Cache {
 		} catch (Exception e) {
 			System.out.println("init cache failed. ex: " + e.toString());
 			System.exit(1);
+		}
+	}
+
+	public void saveToDisk() {
+		try (FileOutputStream fos = new FileOutputStream(dataFile)) {
+			byte[] data = exportAll(); // Reuse existing method
+			fos.write(data);
+			fos.flush();
+			System.out.println("Cache saved to disk at: " + System.currentTimeMillis());
+		} catch (IOException e) {
+			System.err.println("Failed to save cache to disk: " + e.getMessage());
 		}
 	}
 
@@ -121,8 +132,8 @@ public class Cache {
 				inClass = new InClass(classID);
 				newCache.addClass(inClass);
 			}
-			student.registerSubject(subject);
 			student.assignToClass(inClass);
+			student.registerSubject(subject);
 		}
 		cache = newCache;
 	}

@@ -2,9 +2,6 @@ package com.doan.services;
 
 import com.doan.dto.*;
 import com.doan.model.*;
-import com.doan.repository.Dang_Ky_Repository;
-import com.doan.repository.Mon_Hoc_Repository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.sql.Time;

@@ -55,6 +55,7 @@ public class Student {
 		this.participateIn.add(subject);
 		subject.studentList.add(this);
 		Registration registration = new Registration();
+		registration.setStudentClass(this.inClass.id);
 		registration.setMa_sinh_vien(this.id);
 		registration.setTen_sinh_vien(this.name);
 		registration.setMa_mon_hoc(subject.id);

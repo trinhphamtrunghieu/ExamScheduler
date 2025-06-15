@@ -1,7 +1,8 @@
 package com.doan.controller;
 
 import com.doan.dto.Sinh_Vien;
-import com.doan.repository.Sinh_Vien_Repository;
+import com.doan.model.Cache;
+import com.doan.model.Student;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,9 +17,6 @@ import java.util.Optional;
 @RequestMapping("/auth")
 public class Dang_Nhap_Controller {
 
-	@Autowired
-	private Sinh_Vien_Repository sinhVienRepository;
-
 	@PostMapping("/login")
 	public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpSession session) {
 		Map<String, Object> response = new HashMap<>();
@@ -30,9 +28,9 @@ public class Dang_Nhap_Controller {
 		}
 
 		if ("STUDENT".equals(request.getRole()) && request.getStudentId() != null) {
-			Optional<Sinh_Vien> student = sinhVienRepository.findById(request.getStudentId());
-
-			if (student.isPresent()) {
+			Cache cache = Cache.cache;
+			Student student = cache.students.get(request.getStudentId());
+			if (student != null) {
 				session.setAttribute("userRole", "STUDENT");
 				session.setAttribute("studentId", request.getStudentId());
 				response.put("role", "STUDENT");

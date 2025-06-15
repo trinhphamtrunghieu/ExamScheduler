@@ -4,14 +4,11 @@ import com.doan.dto.Sinh_Vien;
 import com.doan.model.Cache;
 import com.doan.model.Student;
 import com.doan.model.UserRole;
-import com.doan.services.Sinh_Vien_Service;
-import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,8 +26,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/students")
 public class Sinh_Vien_Controller {
-	@Autowired
-	private Sinh_Vien_Service sinhVienService;
 
 	@GetMapping("/list")
 	public ResponseEntity<List<Student>> getAllStudent(HttpSession session) {
@@ -43,19 +38,20 @@ public class Sinh_Vien_Controller {
 		return ResponseEntity.badRequest().build();
 	}
 	@PostMapping("/add")
-	public ResponseEntity<?> addStudent(@RequestBody Sinh_Vien newStudent, HttpSession session) {
+	public ResponseEntity<?> addStudent(@RequestBody Student newStudent, HttpSession session) {
 		if (!Common.checkAllowRole(session, UserRole.PROFESSOR)) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
-		if (newStudent.getMa_sinh_vien() == null || newStudent.getTen_sinh_vien() == null) {
+		if (newStudent.getId() == null || newStudent.getName() == null) {
 			return ResponseEntity.badRequest().build();
 		}
-		Optional<Sinh_Vien> isAvailable = sinhVienService.findStudent(newStudent.getMa_sinh_vien());
-		if (isAvailable.isPresent()) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Sinh viên với mã số " + newStudent.getMa_sinh_vien() + " đã tồn tại."));
+		Cache cache = Cache.cache;
+		Student isAvailable = cache.students.get(newStudent.getId());
+		if (isAvailable != null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Sinh viên với mã số " + newStudent.getId() + " đã tồn tại."));
 		}
-		Sinh_Vien savedStudent = sinhVienService.addStudent(newStudent);
-		return ResponseEntity.ok(savedStudent);
+		Cache.cache.students.put(newStudent.getId(), newStudent);
+		return ResponseEntity.ok(newStudent);
 	}
 	@PostMapping("/export")
 	public ResponseEntity<byte[]> exportStudents(@RequestBody List<Map<String, Object>> students) {

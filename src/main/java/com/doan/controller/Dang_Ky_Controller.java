@@ -2,21 +2,13 @@ package com.doan.controller;
 
 import com.doan.dto.*;
 import com.doan.model.*;
-import com.doan.repository.Mon_Hoc_Repository;
-import com.doan.services.Dang_Ky_Service;
-import com.doan.services.Sinh_Vien_Service;
-import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpSession;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.util.*;
@@ -40,7 +32,9 @@ public class Dang_Ky_Controller {
 		String studentID = (String) session.getAttribute("studentId");
 		Student student = Cache.cache.students.get(studentID);
 		if (student != null) {
-			return ResponseEntity.ok(student);
+			List<Registration> result = new ArrayList<>(student.getRegistrations());
+			System.out.println("Student registration: " + result.size() + "  " + result);
+			return ResponseEntity.ok(result);
 		}
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 	}
@@ -88,4 +82,48 @@ public class Dang_Ky_Controller {
 				.collect(Collectors.toList());
 		return ResponseEntity.ok(result);
 	}
+
+	@PostMapping("/export")
+	public ResponseEntity<?> exportRegistration(HttpSession session) {
+		List<Registration> registrations = new ArrayList<>();
+		Cache cache = Cache.cache;
+		System.out.println(session.getAttribute("userRole"));
+		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
+			for (Student student : cache.students.values()) {
+				registrations.addAll(student.getRegistrations());
+			}
+		} else if (Common.checkAllowRole(session, UserRole.STUDENT)) {
+			Student student = cache.students.get((String) session.getAttribute("studentId"));
+			if (student == null) {
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", "no data to export");
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			} else {
+				System.out.println("fetch registration for: " + student.id);
+				registrations.addAll(student.getRegistrations());
+			}
+		}
+		try {
+			if (registrations.isEmpty()) {
+				System.out.println("Registrations empty");
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", "no data to export");
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			}
+			byte[] csvBytes = Common.exportRegistrations(registrations);
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentDispositionFormData("attachment",
+					"exam_schedule_" + java.time.LocalDate.now() + ".csv");
+			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+			return ResponseEntity.ok()
+					.headers(headers)
+					.body(csvBytes);
+
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().build();
+		}
+	}
+
 }

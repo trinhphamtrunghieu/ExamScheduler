@@ -17,31 +17,32 @@ function Registrations() {
     const [disabledDownload, setDisabledDownload] = useState(false);
     const navigate = useNavigate();
 
-  // Check session and fetch registration
-  useEffect(() => {
-    // Fetch user session first
-    fetch(`${API_BASE}/auth/session`, {
-      method: "GET",
-      credentials: "include", // ✅ Ensures session cookies are sent
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.role) {
-          navigate("/"); // Redirect to login if no session
-        } else {
-          setUserRole(data.role);
-          if (data.role === "PROFESSOR") {
-            fetchRegistrations(); // Only fetch students if professor
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking session:", error);
-        navigate("/");
-      });
-  }, []);
+    // Check session and fetch registration
+    useEffect(() => {
+        // Fetch user session first
+        fetch(`${API_BASE}/auth/session`, {
+            method: "GET",
+            credentials: "include", // ✅ Ensures session cookies are sent
+        })
+        .then((res) => res.json())
+        .then((data) => {
+            if (!data.role) {
+                navigate("/"); // Redirect to login if no session
+            } else {
+                setUserRole(data.role);
+                if (data.role === "PROFESSOR" || data.role === "STUDENT") {
+                    fetchRegistrations(); // Only fetch students if professor
+                } else {
+                    navigate("/")
+                }
+            }
+        })
+        .catch((error) => {
+            console.error("Error checking session:", error);
+            navigate("/");
+        });
+    }, []);
 
-  // Fetch students
   const fetchRegistrations = () => {
     fetch(`${API_BASE}/registrations/list`, {
       credentials: "include", // ✅ Ensure session authentication
@@ -106,7 +107,7 @@ function Registrations() {
 
         try {
             const response = await fetch(
-                `${API_BASE}/config/export`, {
+                `${API_BASE}/registrations/export`, {
                     method: 'POST',
                     headers: {
                     'Content-Type': 'application/json',
@@ -188,7 +189,7 @@ function Registrations() {
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={isImporting}
+                            disabled={isImporting || userRole === "STUDENT"}
                             className="import-export-button"
                         >
                             <Upload className="w-4 h-4 mr-2" />

@@ -21,23 +21,8 @@
 
 2. **Move to Artifact Folder**:
    - Navigate to the unzipped artifact folder (e.g., `Java Project`).
-
-3. **Import Database (First Time Only)**:
-   - Run the following command to import the database:
-     ```bash
-     mysql -u <mysql_username> -p < database.sql
-     ```
-
-4. **Edit `.env` File**:
-   - Update the `.env` file with the following details:
-     ```env
-     MYSQL_USERNAME = <mysql_username>  # Example: hieu123
-     MYSQL_PASSWORD = <mysql_password>  # Example: 123456
-     MYSQL_PORT = <mysql_running_port>  # Example: 3306
-     ```
-   - Save the `.env` file after editing.
-
-5. **Run the Application**:
+   - 
+3. **Run the Application**:
    - Execute the following command to start the application:
      ```bash
      <path_to_java> -jar doan-0.0.1-SNAPSHOT.jar
@@ -47,12 +32,18 @@
      /usr/java/jdk-17-oracle-x64/bin/java -jar doan-0.0.1-SNAPSHOT.jar
      ```
 
-6. **Wait for Logs**:
+4. **Wait for Logs**:
    - Look for the following logs to confirm the application has started:
      ```log
      o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
      com.doan.DoanApplication                 : Started DoanApplication in ....... seconds
      ```
 
-7. **Access the Application**:
+5. **Access the Application**:
    - Open your browser and go to: [http://localhost:8080/](http://localhost:8080/).
+
+
+NOTE
+1. data saved as data.csv in the same folder with script. Import data via "Cài đặt" function after logged in as professor
+2. data periodically flush to disk
+3. re-import data will invalidate all current data

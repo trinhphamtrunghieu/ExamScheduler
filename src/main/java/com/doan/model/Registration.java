@@ -10,6 +10,7 @@ import java.util.Objects;
 public class Registration {
 	private String ma_sinh_vien;
 	private String ten_sinh_vien;
+	private String studentClass;
 	private String ma_mon_hoc;
 	private String ten_mon_hoc;
 	private String ten_giang_vien;
