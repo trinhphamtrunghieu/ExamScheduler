@@ -74,6 +74,10 @@ public class Sinh_Vien_Controller {
 
 			csvWriter.close();
 			byte[] csvBytes = stringWriter.toString().getBytes("UTF-8");
+			byte[] bom = new byte[] {(byte)0xEF, (byte)0xBB, (byte)0xBF};
+			byte[] csvWithBom = new byte[bom.length + csvBytes.length];
+			System.arraycopy(bom, 0, csvWithBom, 0, bom.length);
+			System.arraycopy(csvBytes, 0, csvWithBom, bom.length, csvBytes.length);
 
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.parseMediaType("text/csv"));
