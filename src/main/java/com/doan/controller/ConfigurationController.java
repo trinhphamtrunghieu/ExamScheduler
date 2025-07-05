@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.util.*;
 
@@ -54,7 +55,7 @@ public class ConfigurationController {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream()),
+			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8),
 					Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"));
 			cache.importAll(records, false);
 			response.put("message", "Imported successfully");

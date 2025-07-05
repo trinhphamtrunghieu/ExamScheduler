@@ -26,7 +26,7 @@ public class Cache {
 		File file = new File(dataFile);
 		try {
 			List<CSVRecord> records = Helper.parseCSVFromValidHeader(
-					new InputStreamReader(new FileInputStream(file)),
+					new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8),
 					Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"));
 			importAll(records, false);
 		} catch (Exception e) {

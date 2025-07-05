@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -112,7 +113,7 @@ public class Mon_Hoc_Controller {
 					.collect(Collectors.toSet()));
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy"); // handles single-digit day/month
 			List<Subject> subjects = new ArrayList<>();
-			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream()),
+			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8),
 					Set.of("Mã lớp học", "TÊN MÔN HỌC", "GIẢNG VIÊN", "Ngày bắt đầu", "Ngày kết thúc"));
 			for (CSVRecord record : records) {
 				try {
