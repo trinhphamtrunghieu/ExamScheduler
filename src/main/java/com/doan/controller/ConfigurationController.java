@@ -23,7 +23,7 @@ import java.util.*;
 public class ConfigurationController {
 	private Cache cache = Cache.cache;
 
-	@GetMapping("/export")
+	@PostMapping("/export")
 	public ResponseEntity<?> exportRegistration() {
 		try {
 			if (cache.students.isEmpty() && cache.subjects.isEmpty() && cache.classes.isEmpty()) {

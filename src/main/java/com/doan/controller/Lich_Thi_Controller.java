@@ -19,10 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/schedule")
@@ -70,24 +67,36 @@ public class Lich_Thi_Controller {
 			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 			}
-			List<Schedule> schedule = schedulerService2.generateExamSchedule(options);
-			String conflict_check = "";
-			boolean is_conflict = schedulerService2.validateSchedule(conflict_check, schedule, schedulerService2.cur_registration);
-			if (!is_conflict) {
-				Map<String, Object> response = new HashMap<>();
-				response.put("error", conflict_check);
-				response.put("data", schedule);
-				System.out.println(conflict_check);
-				return ResponseEntity.status(HttpStatus.OK)
-						.body(response);
-			} else {
-				Map<String, Object> response = new HashMap<>();
-				response.put("error", "success");
-				response.put("data", schedule);
+			List<Schedule> schedule = new ArrayList<>();
+			try {
+				schedule = schedulerService2.generateExamSchedule(options);
+				String conflict_check = "";
+				boolean is_conflict = schedulerService2.validateSchedule(conflict_check, schedule, schedulerService2.cur_registration);
+				if (!is_conflict) {
+					Map<String, Object> response = new HashMap<>();
+					response.put("error", conflict_check);
+					response.put("data", schedule);
+					System.out.println(conflict_check);
+					return ResponseEntity.status(HttpStatus.OK)
+							.body(response);
+				} else {
+					Map<String, Object> response = new HashMap<>();
+					response.put("error", "success");
+					response.put("data", schedule);
 //				schedulerService.saveToDB(ldto);
-				return ResponseEntity.status(HttpStatus.OK)
+					return ResponseEntity.status(HttpStatus.OK)
+							.body(response);
+				}
+			} catch (IllegalStateException ex) {
+				System.out.println(ex.getMessage());
+				Map<String, Object> response = new HashMap<>();
+				response.put("error", "Generate schedule failed");
+				response.put("data", ex.getMessage());
+//				schedulerService.saveToDB(ldto);
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 						.body(response);
 			}
+
 		} else {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
