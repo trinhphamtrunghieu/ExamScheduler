@@ -31,7 +31,7 @@ public class Cache {
 			importAll(records, false);
 		} catch (Exception e) {
 			System.out.println("init cache failed. ex: " + e.toString());
-			System.exit(1);
+//			System.exit(1);
 		}
 	}
 
