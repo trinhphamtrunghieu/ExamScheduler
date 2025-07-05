@@ -20,7 +20,10 @@ public class Cache {
 	public static Cache cache = new Cache();
 	private final String dataFile = "./data.csv";
 
-	private Cache(){};
+	private Cache() {
+	}
+
+	;
 
 	public void initialize() {
 		File file = new File(dataFile);
@@ -36,13 +39,39 @@ public class Cache {
 	}
 
 	public void saveToDisk() {
-		try (FileOutputStream fos = new FileOutputStream(dataFile)) {
-			byte[] data = exportAll(); // Reuse existing method
-			fos.write(data);
-			fos.flush();
+		try (FileOutputStream fos = new FileOutputStream(dataFile);
+		     OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
+
+			// Write UTF-8 BOM (Byte Order Mark) for better Windows compatibility
+			fos.write(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
+
+			// Use CSVPrinter directly with UTF-8 writer
+			try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader())) {
+
+				// Write header
+				printer.printRecord("STT", "MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên", "LỚP", "NGÀY THI");
+
+				// Write data
+				int counter = 1;
+				for (Student student : students.values()) {
+					for (Subject subject : student.participateIn) {
+						printer.printRecord(counter,
+								student.id, student.name,
+								subject.id, subject.name, subject.teacher,
+								student.inClass.id, ""); // Empty exam date
+						counter++;
+					}
+				}
+
+				printer.flush();
+				writer.flush();
+			}
+
 			System.out.println("Cache saved to disk at: " + System.currentTimeMillis());
+
 		} catch (IOException e) {
 			System.err.println("Failed to save cache to disk: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 

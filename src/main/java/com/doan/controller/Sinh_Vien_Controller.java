@@ -82,7 +82,8 @@ public class Sinh_Vien_Controller {
 			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
 			return ResponseEntity.ok()
-					.headers(headers)
+					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+					.contentLength(csvBytes.length)
 					.body(csvBytes);
 
 		} catch (Exception e) {

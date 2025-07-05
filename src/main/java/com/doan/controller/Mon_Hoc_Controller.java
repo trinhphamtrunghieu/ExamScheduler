@@ -88,6 +88,8 @@ public class Mon_Hoc_Controller {
 
 			return ResponseEntity.ok()
 					.headers(headers)
+					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+					.contentLength(csvBytes.length)
 					.body(csvBytes);
 
 		} catch (Exception e) {
