@@ -67,12 +67,12 @@ public class Mon_Hoc_Controller {
 			// Write data rows
 			for (Map<String, Object> exam : courses) {
 				String[] row = {
-						String.valueOf(exam.get("maMonHoc")),
-						String.valueOf(exam.get("tenMonHoc")),
-						String.valueOf(exam.get("ten_gv_dung_lop")),
-						String.valueOf(exam.get("ngay_bat_dau")),
-						String.valueOf(exam.get("ngay_ket_thuc")),
-						String.valueOf(exam.get("thoi_luong_thi")) + " phút"
+						String.valueOf(exam.get("id")),
+						String.valueOf(exam.get("name")),
+						String.valueOf(exam.get("teacher")),
+						String.valueOf(exam.get("startDate")),
+						String.valueOf(exam.get("endDate")),
+						String.valueOf(exam.get("duration")) + " phút"
 				};
 				csvWriter.writeNext(row);
 			}
@@ -105,9 +105,7 @@ public class Mon_Hoc_Controller {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader().withIgnoreHeaderCase());
-			List<Subject> students = new ArrayList<>();
+
 			Cache cache = Cache.cache;
 			Set<String> existingIds = new HashSet<>(cache.subjects.values()
 					.stream()
@@ -148,7 +146,6 @@ public class Mon_Hoc_Controller {
 				}
 			}
 
-			parser.close();
 			if (!(error.length() == 0)) {
 				response.put("error", error);
 				return ResponseEntity.internalServerError().body(response);

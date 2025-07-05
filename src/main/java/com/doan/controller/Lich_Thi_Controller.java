@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -118,7 +119,7 @@ public class Lich_Thi_Controller {
 			}
 
 			csvWriter.close();
-			byte[] csvBytes = stringWriter.toString().getBytes("UTF-8");
+			byte[] csvBytes = stringWriter.toString().getBytes(StandardCharsets.UTF_8);
 
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.parseMediaType("text/csv"));
