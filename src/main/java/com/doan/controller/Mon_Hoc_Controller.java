@@ -105,9 +105,7 @@ public class Mon_Hoc_Controller {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader().withIgnoreHeaderCase());
-			List<Subject> students = new ArrayList<>();
+
 			Cache cache = Cache.cache;
 			Set<String> existingIds = new HashSet<>(cache.subjects.values()
 					.stream()
@@ -148,7 +146,6 @@ public class Mon_Hoc_Controller {
 				}
 			}
 
-			parser.close();
 			if (!(error.length() == 0)) {
 				response.put("error", error);
 				return ResponseEntity.internalServerError().body(response);

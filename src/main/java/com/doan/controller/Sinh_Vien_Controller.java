@@ -1,5 +1,6 @@
 package com.doan.controller;
 
+import com.doan.common.Helper;
 import com.doan.dto.Sinh_Vien;
 import com.doan.model.Cache;
 import com.doan.model.Student;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpSession;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang3.CharSet;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -54,7 +57,9 @@ public class Sinh_Vien_Controller {
 		return ResponseEntity.ok(newStudent);
 	}
 	@PostMapping("/export")
-	public ResponseEntity<byte[]> exportStudents(@RequestBody List<Map<String, Object>> students) {
+	public ResponseEntity<byte[]> exportStudents(@RequestBody List<Map<String, Object>> students,
+	                                             @RequestParam(defaultValue = "UTF-8") String encoding // default to UTF-8
+	) {
 		try {
 			StringWriter stringWriter = new StringWriter();
 			CSVWriter csvWriter = new CSVWriter(stringWriter);
@@ -102,15 +107,14 @@ public class Sinh_Vien_Controller {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-			CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader().withIgnoreHeaderCase());
+			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8), Set.of("MSSV", "Họ tên"));
 			List<Student> students = new ArrayList<>();
 			Cache cache = Cache.cache;
 			Set<String> existingIds = new HashSet<>(cache.students.values()
 					.stream()
 					.map(Student::getId)
 					.collect(Collectors.toSet()));
-			for (CSVRecord record : parser) {
+			for (CSVRecord record : records) {
 				String maSV = record.get("MSSV");
 				String tenSV = record.get("Họ tên");
 
@@ -126,8 +130,6 @@ public class Sinh_Vien_Controller {
 				students.add(student);
 				existingIds.add(maSV); // Prevent duplicates in same file
 			}
-
-			parser.close();
 
 			if (!students.isEmpty()) {
 				cache.addStudent(students);
