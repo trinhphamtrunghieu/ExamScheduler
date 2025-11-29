@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -33,13 +34,16 @@ public class Helper {
 		String[] headers = null;
 
 		for (int i = 0; i < allLines.size(); i++) {
-			String[] columns = allLines.get(i).split(",");
+			String raw_str = new String(allLines.get(i).getBytes(), StandardCharsets.UTF_8);
+			String[] columns = raw_str.split(",");
 
 			Set<String> lowerColumns = Arrays.stream(columns)
 					.map(String::trim)
 					.map(String::toLowerCase)
+					.map(String::toString)
 					.collect(Collectors.toSet());
-
+			System.out.println("line: " + i + ": " + raw_str);
+			System.out.println("required: " + i + ": " + lowerRequiredHeaders);
 			if (lowerColumns.containsAll(lowerRequiredHeaders)) {
 				headers = Arrays.stream(columns).map(String::trim).toArray(String[]::new);
 				headerLineIndex = i;

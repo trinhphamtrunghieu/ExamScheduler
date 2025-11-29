@@ -33,6 +33,7 @@ public class ConfigurationController {
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 			}
 			byte[] csvBytes = cache.exportAll();
+
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.parseMediaType("text/csv"));
 			headers.setContentDispositionFormData("attachment",
@@ -41,6 +42,8 @@ public class ConfigurationController {
 
 			return ResponseEntity.ok()
 					.headers(headers)
+					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+					.contentLength(csvBytes.length)
 					.body(csvBytes);
 
 		} catch (Exception e) {
@@ -61,6 +64,7 @@ public class ConfigurationController {
 			response.put("message", "Imported successfully");
 			return ResponseEntity.ok(response);
 		} catch (IllegalStateException ex) {
+			ex.printStackTrace();
 			response.put("error", "Required field: MSSV, Họ tên, Mã lớp học, Môn học, Giáo viên");
 			return ResponseEntity.badRequest().body(response);
 	    } catch (Exception e) {

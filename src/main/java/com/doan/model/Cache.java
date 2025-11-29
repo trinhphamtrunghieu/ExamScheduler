@@ -1,6 +1,7 @@
 package com.doan.model;
 
 import com.doan.common.Helper;
+import com.opencsv.CSVWriter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -108,6 +109,11 @@ public class Cache {
 	public byte[] exportAll() throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+		StringWriter stringWriter = new StringWriter();
+		CSVWriter csvWriter = new CSVWriter(stringWriter);
+		String[] header = {"STT", "MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên", "LỚP", "NGÀY THI"};
+		csvWriter.writeNext(header);
+
 		CSVPrinter printer = new CSVPrinter(writer, CSVFormat.EXCEL.withTrim().withFirstRecordAsHeader());
 
 		// Write data
@@ -120,11 +126,23 @@ public class Cache {
 						subject.id, subject.name, subject.teacher,
 						student.inClass.id);
 				counter++;
+				String[] row = {
+						String.valueOf(counter),
+						String.valueOf(student.id),
+						String.valueOf(student.name),
+						String.valueOf(subject.id),
+						String.valueOf(subject.name),
+						String.valueOf(subject.teacher),
+						String.valueOf(student.inClass.id),
+				};
+				csvWriter.writeNext(row);
 			}
 		}
+		csvWriter.close();
+		byte[] csvBytes = stringWriter.toString().getBytes(StandardCharsets.UTF_8);
 
 		printer.flush();
-		return out.toByteArray();
+		return csvBytes;
 	}
 
 	public void importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
@@ -144,7 +162,7 @@ public class Cache {
 			subjectID = record.get("Mã lớp học");
 			subjectName = record.get("Môn học");
 			teacher = record.get("Giáo viên");
-			classID = record.get("Lớp");
+			classID = record.get("Mã lớp học");
 			if (subjectName.isEmpty()) continue;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {
