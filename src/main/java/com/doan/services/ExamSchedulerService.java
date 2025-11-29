@@ -1,6 +1,5 @@
 package com.doan.services;
 
-import com.doan.controller.Common;
 import com.doan.dto.Lich_Thi_Option;
 import com.doan.model.*;
 import org.springframework.stereotype.Service;
@@ -30,10 +29,30 @@ public class ExamSchedulerService {
 	private List<LocalTime> timeSlots;
 	private Map<String, List<String>> studentCourseMap = new HashMap<>();
 	private List<Subject> selected_course = new ArrayList<>();
-	private List<Registration> registrations = new ArrayList<>();
 
-	private List<LocalTime> generateTimeSlots(int startHour) {
-		return List.of(LocalTime.of(8, 0), LocalTime.of(10, 0), LocalTime.of(13, 0), LocalTime.of(15, 0));
+	private List<LocalTime> generateTimeSlots(int startHour, int endHour) {
+		LocalTime start = LocalTime.of(startHour, 0);
+		LocalTime end = LocalTime.of(endHour, 0);
+
+		return List.of(
+						LocalTime.of(8, 0),
+						LocalTime.of(10, 0),
+						LocalTime.of(13, 0),
+						LocalTime.of(15, 0),
+						LocalTime.of(16, 30)
+				).stream()
+				.filter(time -> {
+					// Special handling for boundary times
+					if (time.equals(LocalTime.of(8, 0))) {
+						return startHour <= 8;
+					}
+					if (time.equals(LocalTime.of(16, 30))) {
+						return endHour >= 16;
+					}
+					// Regular filtering for other times
+					return !time.isBefore(start) && !time.isAfter(end);
+				})
+				.collect(Collectors.toList());
 	}
 
 	public List<Schedule> generateExamSchedule(Lich_Thi_Option options) {
@@ -54,7 +73,6 @@ public class ExamSchedulerService {
 		}
 
 		this.selected_course = courses;
-		this.registrations = regis;
 		this.studentCourseMap = initializeStudentCourseMap(regis);
 
 		this.totalDays = ChronoUnit.DAYS.between(LocalDate.parse(options.getDayFrom()), LocalDate.parse(options.getDayTo())) + 1;
@@ -65,7 +83,7 @@ public class ExamSchedulerService {
 		this.endHour = options.getHourToInt();
 		this.dateFrom = LocalDate.parse(options.getDayFrom());
 		this.totalCourse = courses.size();
-		this.timeSlots = generateTimeSlots(this.startHour);
+		this.timeSlots = generateTimeSlots(options.getHourFromInt(), options.getHourToInt());
 		this.maxExamPerDay = options.getMaxExamPerDay();
 
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());

@@ -83,7 +83,6 @@ public class Lich_Thi_Controller {
 					Map<String, Object> response = new HashMap<>();
 					response.put("error", "success");
 					response.put("data", schedule);
-//				schedulerService.saveToDB(ldto);
 					return ResponseEntity.status(HttpStatus.OK)
 							.body(response);
 				}
@@ -92,7 +91,6 @@ public class Lich_Thi_Controller {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "Generate schedule failed");
 				response.put("data", ex.getMessage());
-//				schedulerService.saveToDB(ldto);
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 						.body(response);
 			}
