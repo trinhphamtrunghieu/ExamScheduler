@@ -2,7 +2,7 @@
 
 ## 1. How to Get Artifact
 
-1. Access [GitHub Actions](https://github.com/TPTHieuUIT/ExamScheduler/actions).
+1. Access [GitHub Actions](https://github.com/trinhphamtrunghieu/ExamScheduler/actions?query=branch%3Amain).
 2. Select the latest successful job (look for the job with a green tick, e.g., [Example Job](https://github.com/TPTHieuUIT/ExamScheduler/actions/runs/13162041340)).
 3. Scroll to the **Artifacts** section and download it.
 
@@ -30,6 +30,10 @@
      Example:
      ```bash
      /usr/java/jdk-17-oracle-x64/bin/java -jar doan-0.0.1-SNAPSHOT.jar
+     ```
+     Or in window os, run this
+     ```bash
+     ./run_in_window.bat
      ```
 
 4. **Wait for Logs**:
