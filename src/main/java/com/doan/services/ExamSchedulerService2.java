@@ -179,7 +179,7 @@ public class ExamSchedulerService2 {
 		LocalDate startDate = LocalDate.parse(options.getDayFrom());
 		LocalDate endDate = LocalDate.parse(options.getDayTo());
 
-		List<LocalTime> dailyTimes = getDefaultTimes();
+		List<LocalTime> dailyTimes = getDefaultTimes(options.getHourFromInt(), options.getHourToInt());
 
 		LocalDate currentDate = startDate;
 		while (!currentDate.isAfter(endDate)) {
@@ -244,13 +244,29 @@ public class ExamSchedulerService2 {
 	/**
 	 * Default time slots for each day
 	 */
-	private List<LocalTime> getDefaultTimes() {
+	private List<LocalTime> getDefaultTimes(int startHour, int endHour) {
+		LocalTime start = LocalTime.of(startHour, 0);
+		LocalTime end = LocalTime.of(endHour, 0);
+
 		return List.of(
-				LocalTime.of(8, 0),
-				LocalTime.of(10, 0),
-				LocalTime.of(13, 0),
-				LocalTime.of(15, 0)
-		);
+						LocalTime.of(8, 0),
+						LocalTime.of(10, 0),
+						LocalTime.of(13, 0),
+						LocalTime.of(15, 0),
+						LocalTime.of(16, 30)
+				).stream()
+				.filter(time -> {
+					// Special handling for boundary times
+					if (time.equals(LocalTime.of(8, 0))) {
+						return startHour <= 8;
+					}
+					if (time.equals(LocalTime.of(16, 30))) {
+						return endHour >= 16;
+					}
+					// Regular filtering for other times
+					return !time.isBefore(start) && !time.isAfter(end);
+				})
+				.collect(Collectors.toList());
 	}
 
 	/**
