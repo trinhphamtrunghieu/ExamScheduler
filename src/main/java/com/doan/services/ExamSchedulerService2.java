@@ -249,8 +249,7 @@ public class ExamSchedulerService2 {
 				LocalTime.of(8, 0),
 				LocalTime.of(10, 0),
 				LocalTime.of(13, 0),
-				LocalTime.of(15, 0),
-				LocalTime.of(16, 30)
+				LocalTime.of(15, 0)
 		);
 	}
 

@@ -33,7 +33,7 @@ public class ExamSchedulerService {
 	private List<Registration> registrations = new ArrayList<>();
 
 	private List<LocalTime> generateTimeSlots(int startHour) {
-		return List.of(LocalTime.of(8, 0), LocalTime.of(10, 0), LocalTime.of(13, 0), LocalTime.of(15, 0), LocalTime.of(16, 30));
+		return List.of(LocalTime.of(8, 0), LocalTime.of(10, 0), LocalTime.of(13, 0), LocalTime.of(15, 0));
 	}
 
 	public List<Schedule> generateExamSchedule(Lich_Thi_Option options) {
