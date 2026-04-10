@@ -48,13 +48,13 @@ public class ConfigurationController {
 
 	@PostMapping("/import")
 	public ResponseEntity<Map<String, Object>> importRegistration(@RequestParam("file") MultipartFile file,
-	                                                              @RequestParam(value = "headerMapping", required = false) String headerMappingRaw) {
+	                                                              @RequestParam(value = "headerMapping", required = false) String headerMapping) {
 		Map<String, Object> response = new HashMap<>();
 		try {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMappingRaw);
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMapping);
 			Map<String, String> resolvedHeaders = new HashMap<>();
 			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
 			cache.importAll(records, false, resolvedHeaders);

@@ -88,14 +88,14 @@ public class Sinh_Vien_Controller {
 
 	@PostMapping("/import")
 	public ResponseEntity<Map<String, Object>> importStudents(@RequestParam("file") MultipartFile file,
-	                                                         @RequestParam(value = "headerMapping", required = false) String headerMappingRaw) {
+	                                                         @RequestParam(value = "headerMapping", required = false) String headerMapping) {
 		try {
 			Map<String, Object> response = new HashMap<>();
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
 			Map<String, String> resolvedHeaders = new HashMap<>();
-			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMappingRaw);
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMapping);
 			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
 			List<Student> students = new ArrayList<>();
 			Cache cache = Cache.cache;

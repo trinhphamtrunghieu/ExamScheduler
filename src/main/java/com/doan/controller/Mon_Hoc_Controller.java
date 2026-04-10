@@ -86,8 +86,8 @@ public class Mon_Hoc_Controller {
 	}
 
 	@PostMapping("/import")
-	public ResponseEntity<Map<String, Object>> importSujects(@RequestParam("file") MultipartFile file,
-	                                                         @RequestParam(value = "headerMapping", required = false) String headerMappingRaw) {
+	public ResponseEntity<Map<String, Object>> importSubjects(@RequestParam("file") MultipartFile file,
+	                                                         @RequestParam(value = "headerMapping", required = false) String headerMapping) {
 		Map<String, Object> response = new HashMap<>();
 		StringBuilder error = new StringBuilder();
 		try {
@@ -102,7 +102,7 @@ public class Mon_Hoc_Controller {
 					.collect(Collectors.toSet()));
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy"); // handles single-digit day/month
 			List<Subject> subjects = new ArrayList<>();
-			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMappingRaw);
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMapping);
 			Map<String, String> resolvedHeaders = new HashMap<>();
 			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
 			for (CSVRecord record : records) {
