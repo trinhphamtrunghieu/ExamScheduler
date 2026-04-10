@@ -84,11 +84,14 @@ public class Helper {
 		for (int i = headerLineInfo.headerLineIndex; i < allLines.size(); i++) {
 			csvContent.append(allLines.get(i)).append("\n");
 		}
-
+		String[] cleanedHeaders = Arrays.stream(headers)
+				.map(String::trim)
+				.filter(h -> !h.isEmpty())
+				.toArray(String[]::new);
 		try (Reader stringReader = new StringReader(csvContent.toString());
 		     CSVParser parser = CSVFormat.DEFAULT
 				     .withDelimiter(headerLineInfo.delimiter)
-				     .withHeader(headers)
+				     .withHeader(cleanedHeaders)
 				     .withSkipHeaderRecord()
 				     .withIgnoreHeaderCase()
 				     .withTrim()
