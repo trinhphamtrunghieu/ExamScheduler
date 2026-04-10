@@ -171,45 +171,45 @@ function Configuration() {
                 <div className="result-section">
                     <div className="result-header">
                         <h2>Configuration</h2>
-                        <div className="import-export-button-container">
-                            <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImportAllData}
-                            accept=".csv"
-                            className="hidden"
-                            disabled={isProcessing}
-                            />
+                    </div>
+                    <div className="import-export-button-container">
+                        <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportAllData}
+                        accept=".csv"
+                        className="hidden"
+                        disabled={isProcessing}
+                        />
 
-                            <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
-                            >
-                            <Upload className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
-                            </button>
-                            <button
-                            onClick={handleExportAllData}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
-                            >
-                            <Download className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
-                            </button>
-                            <button
-                                onClick={handleSaveConfig}
-                                disabled={isSaving}
-                                className="flex items-center justify-center p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg w-full"
-                            >
-                            <span className="ml-2">
-                                {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
-                            </span>
-                            </button>
-                        </div>
+                        <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
+                        >
+                        <Upload className="w-5 h-5 mr-2" />
+                        {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
+                        </button>
+                        <button
+                        onClick={handleExportAllData}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
+                        >
+                        <Download className="w-5 h-5 mr-2" />
+                        {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
+                        </button>
+                        <button
+                            onClick={handleSaveConfig}
+                            disabled={isSaving}
+                            className="flex items-center justify-center p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg w-full"
+                        >
+                        <span className="ml-2">
+                            {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
+                        </span>
+                        </button>
                     </div>
                     {pendingFile && detectedHeaders.length > 0 && (
-                      <div className="w-full mt-3 max-w-xs">
+                      <div className="header-mapping-section">
                         {expectedHeaders.map((expected) => (
                           <div key={expected} className="flex items-center mb-2">
                             <label className="mr-2 text-sm w-28">{expected}</label>

@@ -231,6 +231,12 @@ tr:hover {
   margin-bottom: 1.5rem; /* equivalent to mb-6 */
 }
 
+.header-mapping-section {
+  width: 100%;
+  max-width: 20rem;
+  margin-top: 0.75rem;
+}
+
 .import-export-button {
   display: flex;
   align-items: center;
