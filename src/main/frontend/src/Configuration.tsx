@@ -209,12 +209,12 @@ function Configuration() {
                         </button>
                     </div>
                     {pendingFile && detectedHeaders.length > 0 && (
-                      <div className="header-mapping-section">
+                      <div className="confirm-header-section">
                         {expectedHeaders.map((expected) => (
-                          <div key={expected} className="flex items-center mb-2">
-                            <label className="mr-2 text-sm w-28">{expected}</label>
+                          <div key={expected} className="confirm-header-row">
+                            <label className="confirm-header-label">{expected}</label>
                             <select
-                              className="p-1 border border-gray-300 rounded-lg text-black"
+                              className="confirm-header-select"
                               value={headerMapping[expected] || ""}
                               onChange={(e) => setHeaderMapping((prev) => ({ ...prev, [expected]: e.target.value }))}
                             >
@@ -228,7 +228,7 @@ function Configuration() {
                         <button
                           onClick={handleConfirmImportAllData}
                           disabled={isProcessing || expectedHeaders.some((h) => !headerMapping[h])}
-                          className="flex items-center justify-center p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg w-full"
+                          className="confirm-import-button"
                         >
                           {isProcessing ? "Importing..." : "Confirm Import"}
                         </button>
