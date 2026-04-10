@@ -241,6 +241,7 @@ tr:hover {
   border: 1px solid #e5e7eb;
   background-color: #ffffff;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  font-family: 'Roboto', sans-serif;
 }
 
 .confirm-header-row {
@@ -255,6 +256,7 @@ tr:hover {
   font-size: 0.95rem;
   font-weight: 500;
   color: #1f2937;
+  font-family: inherit;
 }
 
 .confirm-header-select {
@@ -264,6 +266,7 @@ tr:hover {
   border-radius: 0.5rem;
   background-color: #ffffff;
   color: #111827;
+  font-family: inherit;
 }
 
 .confirm-import-button {
@@ -277,6 +280,7 @@ tr:hover {
   background-color: #2563eb;
   color: #ffffff;
   transition: background-color 0.2s ease;
+  font-family: inherit;
 }
 
 .confirm-import-button:hover:not(:disabled) {
