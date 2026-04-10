@@ -53,14 +53,14 @@ function AddStudent() {
               <form onSubmit={handleSubmit}>
                 <div className="flex items-center mb-4">
                   <label
-                    htmlFor="ma_sinh_vien"
+                    htmlFor="student_id"
                     className="mr-2 text-lg font-semibold"
                   >
                     Mã Sinh Viên:
                   </label>
                   <input
                     type="text"
-                    id="ma_sinh_vien"
+                    id="student_id"
                     placeholder="Mã Sinh Viên"
                     value={student.id}
                     onChange={(e) =>
@@ -72,14 +72,14 @@ function AddStudent() {
 
                 <div className="flex items-center mb-4">
                   <label
-                    htmlFor="ten_sinh_vien"
+                    htmlFor="student_name"
                     className="mr-2 text-lg font-semibold"
                   >
                     Tên Sinh Viên:
                   </label>
                   <input
                     type="text"
-                    id="ten_sinh_vien"
+                    id="student_name"
                     placeholder="Tên Sinh Viên"
                     value={student.name}
                     onChange={(e) =>
