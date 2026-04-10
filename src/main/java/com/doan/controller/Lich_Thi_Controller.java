@@ -1,15 +1,10 @@
 package com.doan.controller;
 
-import com.doan.dto.Lich_Thi;
-import com.doan.dto.Lich_Thi_DTO;
 import com.doan.dto.Lich_Thi_Option;
 import com.doan.model.Schedule;
-import com.doan.model.Subject;
-import com.doan.model.UserRole;
 import com.doan.services.ExamSchedulerService;
 import com.doan.services.ExamSchedulerService2;
 import com.opencsv.CSVWriter;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,72 +26,61 @@ public class Lich_Thi_Controller {
 	private ExamSchedulerService2 schedulerService2;
 
 	@PostMapping("/generate")
-	public ResponseEntity<?> generateSchedule(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
-		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
-			//only 5 timeslot. must have better way
-			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
-				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
-			}
-			List<Schedule> result = schedulerService.generateExamSchedule(options);
-//			List<Lich_Thi_DTO> ldto = schedulerService.convertSchedule(result);
-			String conflict_check = schedulerService.evaluate(result);
-			if (!conflict_check.isEmpty()) {
+	public ResponseEntity<?> generateSchedule(@RequestBody Lich_Thi_Option options) {
+		//only 5 timeslot. must have better way
+		if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
+			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
+		}
+		List<Schedule> result = schedulerService.generateExamSchedule(options);
+		String conflict_check = schedulerService.evaluate(result);
+		if (!conflict_check.isEmpty()) {
+			Map<String, Object> response = new HashMap<>();
+			response.put("error", conflict_check);
+			response.put("data", result);
+			System.out.println(conflict_check);
+			return ResponseEntity.status(HttpStatus.OK)
+					.body(response);
+		} else {
+			Map<String, Object> response = new HashMap<>();
+			response.put("error", "success");
+			response.put("data", result);
+			return ResponseEntity.status(HttpStatus.OK)
+					.body(response);
+		}
+	}
+
+	@PostMapping("/generate2")
+	public ResponseEntity<?> generateSchedule2(@RequestBody Lich_Thi_Option options) {
+		//only 5 timeslot. must have better way
+		if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
+			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
+		}
+		List<Schedule> schedule = new ArrayList<>();
+		try {
+			schedule = schedulerService2.generateExamSchedule(options);
+			String conflict_check = "";
+			boolean is_conflict = schedulerService2.validateSchedule(conflict_check, schedule, schedulerService2.cur_registration);
+			if (!is_conflict) {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", conflict_check);
-				response.put("data", result);
+				response.put("data", schedule);
 				System.out.println(conflict_check);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			} else {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "success");
-				response.put("data", result);
-//				schedulerService.saveToDB(ldto);
+				response.put("data", schedule);
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			}
-		} else {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-		}
-	}
-
-	@PostMapping("/generate2")
-	public ResponseEntity<?> generateSchedule2(HttpSession httpSession, @RequestBody Lich_Thi_Option options) {
-		if (Common.checkAllowRole(httpSession, UserRole.PROFESSOR)) {
-			//only 5 timeslot. must have better way
-			if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
-				return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
-			}
-			List<Schedule> schedule = new ArrayList<>();
-			try {
-				schedule = schedulerService2.generateExamSchedule(options);
-				String conflict_check = "";
-				boolean is_conflict = schedulerService2.validateSchedule(conflict_check, schedule, schedulerService2.cur_registration);
-				if (!is_conflict) {
-					Map<String, Object> response = new HashMap<>();
-					response.put("error", conflict_check);
-					response.put("data", schedule);
-					System.out.println(conflict_check);
-					return ResponseEntity.status(HttpStatus.OK)
-							.body(response);
-				} else {
-					Map<String, Object> response = new HashMap<>();
-					response.put("error", "success");
-					response.put("data", schedule);
-					return ResponseEntity.status(HttpStatus.OK)
-							.body(response);
-				}
-			} catch (IllegalStateException ex) {
-				System.out.println(ex.getMessage());
-				Map<String, Object> response = new HashMap<>();
-				response.put("error", "Generate schedule failed");
-				response.put("data", ex.getMessage());
-				return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-						.body(response);
-			}
-
-		} else {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+		} catch (IllegalStateException ex) {
+			System.out.println(ex.getMessage());
+			Map<String, Object> response = new HashMap<>();
+			response.put("error", "Generate schedule failed");
+			response.put("data", ex.getMessage());
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(response);
 		}
 	}
 

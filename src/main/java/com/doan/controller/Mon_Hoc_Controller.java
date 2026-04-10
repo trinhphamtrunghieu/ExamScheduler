@@ -3,14 +3,9 @@ package com.doan.controller;
 import com.doan.common.Helper;
 import com.doan.model.Cache;
 import com.doan.model.Subject;
-import com.doan.model.UserRole;
 import com.opencsv.CSVWriter;
-import jakarta.servlet.http.HttpSession;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,22 +24,15 @@ import java.util.stream.Collectors;
 public class Mon_Hoc_Controller {
 
 	@GetMapping("/list")
-	public ResponseEntity<List<Subject>> getAllSubject(HttpSession session) {
-		if (Common.checkAllowRole(session, UserRole.PROFESSOR) || Common.checkAllowRole(session, UserRole.STUDENT)) {
-			Cache cache = Cache.cache;
-			List<Subject> result = new ArrayList<>(cache.subjects.values());
-			System.out.println("Fetch subject list. size: " + result.size());
-			return ResponseEntity.ok(result);
-		} else {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-		}
+	public ResponseEntity<List<Subject>> getAllSubject() {
+		Cache cache = Cache.cache;
+		List<Subject> result = new ArrayList<>(cache.subjects.values());
+		System.out.println("Fetch subject list. size: " + result.size());
+		return ResponseEntity.ok(result);
 	}
 
 	@PostMapping("/add")
-	public ResponseEntity<Subject> addCourse(@RequestBody Subject newCourse, HttpSession session) {
-		if (!Common.checkAllowRole(session, UserRole.PROFESSOR) && !Common.checkAllowRole(session, UserRole.STUDENT)) {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-		}
+	public ResponseEntity<Subject> addCourse(@RequestBody Subject newCourse) {
 		if (newCourse.id == null || newCourse.name == null || newCourse.id.isEmpty() || newCourse.name.isEmpty()) {
 			return ResponseEntity.badRequest().build();
 		}

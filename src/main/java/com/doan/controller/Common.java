@@ -3,8 +3,6 @@ package com.doan.controller;
 import com.doan.model.Registration;
 import com.doan.model.Student;
 import com.doan.model.Subject;
-import com.doan.model.UserRole;
-import jakarta.servlet.http.HttpSession;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
@@ -15,11 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class Common {
-	public static boolean checkAllowRole(HttpSession session, UserRole role) {
-		String userRole = (String) session.getAttribute("userRole");
-		if (userRole == null) return false; //easy debug
-		return UserRole.valueOf(userRole) == role;
-	}
 	public static class Pair<K, V> {
 		private final K key;
 		private final V value;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
-import { useNavigate } from "react-router-dom";
 import { Download } from "lucide-react";
 
 function Generate() {
@@ -10,7 +9,6 @@ function Generate() {
   const [filterValue, setFilterValue] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "ngay_thi", direction: "asc" });
   const [isLoading, setIsLoading] = useState(false);
-  const [isProfessor, setIsProfessor] = useState(false);
   const [subjects, setSubjects] = useState([]);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [dayFrom, setDayFrom] = useState("");
@@ -23,48 +21,26 @@ function Generate() {
   const [maxGenerations, setMaxGenerations] = useState(500);
   const [validationError, setValidationError] = useState("");
   const [maxExamPerDay, setMaxExamPerDay] = useState(5);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE}/auth/session`, {
-      credentials: "include",
-    })
+    fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
-        if (data.role !== "PROFESSOR") {
-          alert("FORBIDDEN");
-          navigate("/");
-        } else {
-          setIsProfessor(true);
-        }
+        // Process subjects to ensure unique name values
+        const uniqueSubjects = [];
+        const uniqueSubjectNames = new Set();
+
+        data.forEach(sub => {
+          if (!uniqueSubjectNames.has(sub.name)) {
+            uniqueSubjectNames.add(sub.name);
+            uniqueSubjects.push(sub);
+          }
+        });
+
+        setSubjects(uniqueSubjects);
       })
-      .catch((error) => {
-        console.error("Error checking user role:", error);
-        navigate("/");
-      });
-  }, [navigate]);
-
-    useEffect(() => {
-      if (isProfessor) {
-        fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
-          .then((res) => res.json())
-          .then((data) => {
-            // Process subjects to ensure unique name values
-            const uniqueSubjects = [];
-            const uniqueSubjectNames = new Set();
-
-            data.forEach(sub => {
-              if (!uniqueSubjectNames.has(sub.name)) {
-                uniqueSubjectNames.add(sub.name);
-                uniqueSubjects.push(sub);
-              }
-            });
-
-            setSubjects(uniqueSubjects);
-          })
-          .catch((error) => console.error("Error fetching subjects:", error));
-      }
-    }, [isProfessor]);
+      .catch((error) => console.error("Error fetching subjects:", error));
+  }, []);
 
     const fetchScheduleWithRetry = async (options, method, retries = 3) => {
         for (let i = 0; i < retries; i++) {
@@ -188,10 +164,6 @@ function Generate() {
 
     return 0;
   });
-
-  if (!isProfessor) {
-    return null;
-  }
 
   const handleExportCSV = async () => {
     if (schedule.length === 0) {
