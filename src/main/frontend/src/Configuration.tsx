@@ -5,6 +5,7 @@ import { Upload, Download } from "lucide-react";
 
 function Configuration() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
+    const normalizeHeaderText = (value: string) => value.normalize("NFC").trim();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false)
@@ -33,11 +34,17 @@ function Configuration() {
             setError(headerData.error || "Cannot detect CSV headers");
             return;
           }
-          const incomingHeaders = headerData.headers || [];
-          setDetectedHeaders(incomingHeaders);
+          const incomingHeaders = (headerData.headers || []) as string[];
+          const normalizedIncomingHeaders = Array.from(
+            new Set(incomingHeaders.map((h) => normalizeHeaderText(h)))
+          );
+          setDetectedHeaders(normalizedIncomingHeaders);
           const defaultMapping: Record<string, string> = {};
           expectedHeaders.forEach((expected) => {
-            const exact = incomingHeaders.find((h: string) => h === expected);
+            const expectedNormalized = normalizeHeaderText(expected);
+            const exact = normalizedIncomingHeaders.find(
+              (h) => normalizeHeaderText(h) === expectedNormalized
+            );
             defaultMapping[expected] = exact || "";
           });
           setHeaderMapping(defaultMapping);
