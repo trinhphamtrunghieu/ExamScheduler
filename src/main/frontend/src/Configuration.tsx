@@ -35,16 +35,12 @@ function Configuration() {
             return;
           }
           const incomingHeaders = (headerData.headers || []) as string[];
-          const normalizedIncomingHeaders = Array.from(
-            new Set(incomingHeaders.map((h) => normalizeHeaderText(h)))
-          );
+          const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
           setDetectedHeaders(normalizedIncomingHeaders);
           const defaultMapping: Record<string, string> = {};
           expectedHeaders.forEach((expected) => {
             const expectedNormalized = normalizeHeaderText(expected);
-            const exact = normalizedIncomingHeaders.find(
-              (h) => normalizeHeaderText(h) === expectedNormalized
-            );
+            const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
             defaultMapping[expected] = exact || "";
           });
           setHeaderMapping(defaultMapping);
