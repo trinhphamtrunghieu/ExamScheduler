@@ -146,6 +146,10 @@ public class Cache {
 	}
 
 	public void importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
+		importAll(records, isAppend, null);
+	}
+
+	public void importAll(List<CSVRecord> records, boolean isAppend, Map<String, String> resolvedHeaders) throws IOException {
 
 		Cache newCache;
 		if (isAppend) {
@@ -157,12 +161,21 @@ public class Cache {
 			CSVRecord record = records.get(i);
 			//STT, MSSV, Họ tên, Mã lớp học, Môn học, Giáo viên, Lớp
 			String studentID, studentName, subjectID, subjectName, teacher, classID;
-			studentID = record.get("MSSV");
-			studentName = record.get("Họ tên");
-			subjectID = record.get("Mã lớp học");
-			subjectName = record.get("Môn học");
-			teacher = record.get("Giáo viên");
-			classID = record.get("Mã lớp học");
+			if (resolvedHeaders == null || resolvedHeaders.isEmpty()) {
+				studentID = record.get("MSSV");
+				studentName = record.get("Họ tên");
+				subjectID = record.get("Mã lớp học");
+				subjectName = record.get("Môn học");
+				teacher = record.get("Giáo viên");
+				classID = record.get("Mã lớp học");
+			} else {
+				studentID = Helper.getValue(record, resolvedHeaders, "MSSV");
+				studentName = Helper.getValue(record, resolvedHeaders, "Họ tên");
+				subjectID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
+				subjectName = Helper.getValue(record, resolvedHeaders, "Môn học");
+				teacher = Helper.getValue(record, resolvedHeaders, "Giáo viên");
+				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
+			}
 			if (subjectName.isEmpty()) continue;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {

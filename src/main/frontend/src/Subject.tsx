@@ -4,6 +4,7 @@ import NavBar from "./NavBar.tsx";
 import { Download, Upload } from "lucide-react";
 
 function Subjects() {
+    const expectedHeaders = ["Mã lớp học", "TÊN MÔN HỌC", "GIẢNG VIÊN", "Ngày bắt đầu", "Ngày kết thúc"];
     const [subjects, setSubjects] = useState([]);
     const [filterType, setFilterType] = useState("name"); // Default filter by subject name
     const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
@@ -12,6 +13,9 @@ function Subjects() {
     const [isImporting, setIsImporting] = useState(false);
     const [importMessage, setImportMessage] = useState("");
     const [importError, setImportError] = useState("");
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
+    const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
 
@@ -139,11 +143,50 @@ function Subjects() {
     const handleImportCSV = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        setPendingFile(file);
+        setImportMessage("");
+        setImportError("");
+        const headersFormData = new FormData();
+        headersFormData.append("file", file);
+        try {
+          const headersResponse = await fetch(`${API_BASE}/subjects/import/headers`, {
+            method: "POST",
+            credentials: "include",
+            body: headersFormData,
+          });
+          const headerData = await headersResponse.json();
+          if (!headersResponse.ok) {
+            setImportError(headerData.error || "Cannot detect CSV headers");
+            return;
+          }
+          const incomingHeaders = headerData.headers || [];
+          setDetectedHeaders(incomingHeaders);
+          const defaultMapping: Record<string, string> = {};
+          expectedHeaders.forEach((expected) => {
+            const exact = incomingHeaders.find((h: string) => h === expected);
+            defaultMapping[expected] = exact || "";
+          });
+          setHeaderMapping(defaultMapping);
+        } catch (error) {
+          setImportError("Cannot detect CSV headers");
+          console.error("Header detection error:", error);
+        } finally {
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const handleConfirmImport = async () => {
+        if (!pendingFile) return;
         setIsImporting(true);
         setImportMessage("");
         setImportError("");
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", pendingFile);
+        const serializedMapping = Object.entries(headerMapping)
+          .filter(([, actual]) => !!actual)
+          .map(([expected, actual]) => `${expected}=${actual}`)
+          .join(";");
+        formData.append("headerMapping", serializedMapping);
 
         try {
         const response = await fetch(`${API_BASE}/subjects/import`, {
@@ -164,6 +207,9 @@ function Subjects() {
         console.error("Import error:", error);
         } finally {
         setIsImporting(false);
+        setPendingFile(null);
+        setDetectedHeaders([]);
+        setHeaderMapping({});
         // Reset file input
         if (fileInputRef.current) fileInputRef.current.value = "";
         }
@@ -212,6 +258,32 @@ function Subjects() {
                     )}
                     {importError && (
                     <div className="mt-2 text-red-500">{importError}</div>
+                    )}
+                    {pendingFile && detectedHeaders.length > 0 && (
+                      <div className="mt-3">
+                        {expectedHeaders.map((expected) => (
+                          <div key={expected} className="flex items-center mb-2">
+                            <label className="mr-2 text-sm w-36">{expected}</label>
+                            <select
+                              className="p-1 border border-gray-300 rounded-lg"
+                              value={headerMapping[expected] || ""}
+                              onChange={(e) => setHeaderMapping((prev) => ({ ...prev, [expected]: e.target.value }))}
+                            >
+                              <option value="">-- Select header --</option>
+                              {detectedHeaders.map((header) => (
+                                <option key={header} value={header}>{header}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                        <button
+                          onClick={handleConfirmImport}
+                          disabled={isImporting || expectedHeaders.some((h) => !headerMapping[h])}
+                          className="import-export-button mt-1"
+                        >
+                          {isImporting ? "Importing..." : "Confirm Import"}
+                        </button>
+                      </div>
                     )}
                 </div>
                 {/* Filter Form */}

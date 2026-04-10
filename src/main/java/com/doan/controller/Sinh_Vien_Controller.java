@@ -12,15 +12,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStreamReader;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/students")
 public class Sinh_Vien_Controller {
+	private static final Set<String> REQUIRED_HEADERS = Set.of("MSSV", "Họ tên");
 
 	@GetMapping("/list")
 	public ResponseEntity<List<Student>> getAllStudent() {
@@ -88,13 +87,16 @@ public class Sinh_Vien_Controller {
 	}
 
 	@PostMapping("/import")
-	public ResponseEntity<Map<String, Object>> importStudents(@RequestBody @RequestParam("file") MultipartFile file) {
+	public ResponseEntity<Map<String, Object>> importStudents(@RequestParam("file") MultipartFile file,
+	                                                         @RequestParam(value = "headerMapping", required = false) String headerMapping) {
 		try {
 			Map<String, Object> response = new HashMap<>();
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8), Set.of("MSSV", "Họ tên"));
+			Map<String, String> resolvedHeaders = new HashMap<>();
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMapping);
+			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
 			List<Student> students = new ArrayList<>();
 			Cache cache = Cache.cache;
 			Set<String> existingIds = new HashSet<>(cache.students.values()
@@ -102,8 +104,8 @@ public class Sinh_Vien_Controller {
 					.map(Student::getId)
 					.collect(Collectors.toSet()));
 			for (CSVRecord record : records) {
-				String maSV = record.get("MSSV");
-				String tenSV = record.get("Họ tên");
+				String maSV = Helper.getValue(record, resolvedHeaders, "MSSV");
+				String tenSV = Helper.getValue(record, resolvedHeaders, "Họ tên");
 
 				// Skip if student ID already exists
 				if (existingIds.contains(maSV)) continue;
@@ -129,6 +131,19 @@ public class Sinh_Vien_Controller {
 		} catch (Exception e) {
 			e.printStackTrace();
 			return ResponseEntity.internalServerError().build();
+		}
+	}
+
+	@PostMapping("/import/headers")
+	public ResponseEntity<Map<String, Object>> detectStudentImportHeaders(@RequestParam("file") MultipartFile file) {
+		Map<String, Object> response = new HashMap<>();
+		try {
+			response.put("headers", Helper.detectHeaders(file.getBytes(), REQUIRED_HEADERS));
+			response.put("expectedHeaders", REQUIRED_HEADERS);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			response.put("error", "Cannot detect headers from CSV file");
+			return ResponseEntity.badRequest().body(response);
 		}
 	}
 }

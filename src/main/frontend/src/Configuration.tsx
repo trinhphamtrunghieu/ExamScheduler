@@ -4,22 +4,67 @@ import NavBar from "./NavBar.tsx";
 import { Upload, Download } from "lucide-react";
 
 function Configuration() {
+    const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
+    const normalizeHeaderText = (value: string) => value.normalize("NFC").trim();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false)
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
+    const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
 
     const handleImportAllData = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        setPendingFile(file);
+        setMessage("");
+        setError("");
+        const headersFormData = new FormData();
+        headersFormData.append("file", file);
+        try {
+          const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
+            method: "POST",
+            credentials: "include",
+            body: headersFormData,
+          });
+          const headerData = await headersResponse.json();
+          if (!headersResponse.ok) {
+            setError(headerData.error || "Cannot detect CSV headers");
+            return;
+          }
+          const incomingHeaders = (headerData.headers || []) as string[];
+          const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
+          setDetectedHeaders(normalizedIncomingHeaders);
+          const defaultMapping: Record<string, string> = {};
+          expectedHeaders.forEach((expected) => {
+            const expectedNormalized = normalizeHeaderText(expected);
+            const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
+            defaultMapping[expected] = exact || "";
+          });
+          setHeaderMapping(defaultMapping);
+        } catch (err) {
+          console.error("Header detection error:", err);
+          setError("Cannot detect CSV headers");
+        } finally {
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
 
+    const handleConfirmImportAllData = async () => {
+        if (!pendingFile) return;
         setIsProcessing(true);
         setMessage("");
         setError("");
 
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", pendingFile);
+        const serializedMapping = Object.entries(headerMapping)
+          .filter(([, actual]) => !!actual)
+          .map(([expected, actual]) => `${expected}=${actual}`)
+          .join(";");
+        formData.append("headerMapping", serializedMapping);
 
         try {
             const response = await fetch(`${API_BASE}/config/import`, {
@@ -39,6 +84,9 @@ function Configuration() {
             setError("Network error. Please try again.");
         } finally {
             setIsProcessing(false);
+            setPendingFile(null);
+            setDetectedHeaders([]);
+            setHeaderMapping({});
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -126,47 +174,72 @@ function Configuration() {
                 <div className="result-section">
                     <div className="result-header">
                         <h2>Configuration</h2>
-                        <div className="import-export-button-container">
-                            <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImportAllData}
-                            accept=".csv"
-                            className="hidden"
-                            disabled={isProcessing}
-                            />
-
-                            <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
-                            >
-                            <Upload className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
-                            </button>
-
-                            <button
-                            onClick={handleExportAllData}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
-                            >
-                            <Download className="w-5 h-5 mr-2" />
-                            {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
-                            </button>
-                            <button
-                                onClick={handleSaveConfig}
-                                disabled={isSaving}
-                                className="flex items-center justify-center p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg w-full"
-                            >
-                            <span className="ml-2">
-                                {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
-                            </span>
-                            </button>
-                        </div>
-                            {message && <div className="text-green-600">{message}</div>}
-                            {error && <div className="text-red-500">{error}</div>}
-                        </div>
                     </div>
+                    <div className="import-export-button-container">
+                        <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportAllData}
+                        accept=".csv"
+                        className="hidden"
+                        disabled={isProcessing}
+                        />
+
+                        <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
+                        >
+                        <Upload className="w-5 h-5 mr-2" />
+                        {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
+                        </button>
+                        <button
+                        onClick={handleExportAllData}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
+                        >
+                        <Download className="w-5 h-5 mr-2" />
+                        {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
+                        </button>
+                        <button
+                            onClick={handleSaveConfig}
+                            disabled={isSaving}
+                            className="flex items-center justify-center p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg w-full"
+                        >
+                        <span className="ml-2">
+                            {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
+                        </span>
+                        </button>
+                    </div>
+                    {pendingFile && detectedHeaders.length > 0 && (
+                      <div className="confirm-header-section">
+                        {expectedHeaders.map((expected) => (
+                          <div key={expected} className="confirm-header-row">
+                            <label className="confirm-header-label">{expected}</label>
+                            <select
+                              className="confirm-header-select"
+                              value={headerMapping[expected] || ""}
+                              onChange={(e) => setHeaderMapping((prev) => ({ ...prev, [expected]: e.target.value }))}
+                            >
+                              <option value="">-- Select header --</option>
+                              {detectedHeaders.map((header) => (
+                                <option key={header} value={header}>{header}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                        <button
+                          onClick={handleConfirmImportAllData}
+                          disabled={isProcessing || expectedHeaders.some((h) => !headerMapping[h])}
+                          className="confirm-import-button"
+                        >
+                          {isProcessing ? "Importing..." : "Confirm Import"}
+                        </button>
+                    </div>
+                    )}
+                    {message && <div className="text-green-600">{message}</div>}
+                    {error && <div className="text-red-500">{error}</div>}
+                </div>
                 </div>
             </div>
         </div>

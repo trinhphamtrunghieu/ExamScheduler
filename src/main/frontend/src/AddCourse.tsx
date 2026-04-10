@@ -14,10 +14,19 @@ function AddCourse() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const parsedDuration = Number.parseInt(course.thoi_luong_thi, 10);
+    const payload = {
+      id: course.maMonHoc,
+      name: course.tenMonHoc,
+      teacher: course.ten_gv_dung_lop,
+      startDate: course.ngay_bat_dau || null,
+      endDate: course.ngay_ket_thuc || null,
+      duration: Number.isFinite(parsedDuration) ? parsedDuration : null,
+    };
     fetch(`${API_BASE}/subjects/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(course),
+      body: JSON.stringify(payload),
     })
       .then((res) => res.json())
       .then((data) => alert("Course added successfully!"))
