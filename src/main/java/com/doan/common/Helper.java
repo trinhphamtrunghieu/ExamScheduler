@@ -182,18 +182,18 @@ public class Helper {
 	}
 
 	private static boolean isBetterHeaderCandidate(HeaderDetectionCandidate current,
-	                                               HeaderDetectionCandidate best,
+	                                               HeaderDetectionCandidate existing,
 	                                               boolean hasExpectedHeaders) {
-		if (best == null) return true;
+		if (existing == null) return true;
 
-		if (hasExpectedHeaders && current.expectedMatchCount != best.expectedMatchCount) {
-			return current.expectedMatchCount > best.expectedMatchCount;
+		if (hasExpectedHeaders && current.expectedMatchCount != existing.expectedMatchCount) {
+			return current.expectedMatchCount > existing.expectedMatchCount;
 		}
-		if (current.replacementCharCount != best.replacementCharCount) {
-			return current.replacementCharCount < best.replacementCharCount;
+		if (current.replacementCharCount != existing.replacementCharCount) {
+			return current.replacementCharCount < existing.replacementCharCount;
 		}
-		if (current.headers.size() != best.headers.size()) {
-			return current.headers.size() > best.headers.size();
+		if (current.headers.size() != existing.headers.size()) {
+			return current.headers.size() > existing.headers.size();
 		}
 		return false;
 	}
