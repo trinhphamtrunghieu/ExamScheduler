@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
-import { useNavigate } from "react-router-dom";
 import { Download, Upload } from "lucide-react";
 
 function Subjects() {
@@ -10,40 +9,16 @@ function Subjects() {
     const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
     const [availableExamDurations, setAvailableExamDurations] = useState([]); // To hold unique exam durations
-    const [userRole, setUserRole] = useState(null); // To store user role (if user is a professor)
-    const navigate = useNavigate();
     const [isImporting, setIsImporting] = useState(false);
     const [importMessage, setImportMessage] = useState("");
     const [importError, setImportError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
 
-  // Check session and fetch subjects
+  // Fetch subjects on mount
   useEffect(() => {
-    // Fetch user session first
-    fetch(`${API_BASE}/auth/session`, {
-      method: "GET",
-      credentials: "include", // Ensures session cookies are sent
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.role) {
-          navigate("/"); // Redirect to login if no session or role is not found
-        } else {
-          setUserRole(data.role);
-          if (data.role === "PROFESSOR") {
-            fetchSubjects(); // Only fetch subjects if the user is a professor
-          } else {
-              alert("FORBIDDEN")
-            navigate("/")
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking session:", error);
-        navigate("/");
-      });
-  }, [navigate]);
+    fetchSubjects();
+  }, []);
 
   // Fetch subjects
   const fetchSubjects = () => {

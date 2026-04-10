@@ -1,33 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from './NavBar.tsx'; // Assuming you have NavBar component
-import { useNavigate } from "react-router-dom";
 
 function AddStudent() {
   const [student, setStudent] = useState({ ma_sinh_vien: "", ten_sinh_vien: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [isProfessor, setIsProfessor] = useState(false); // Track if the user is a professor
-  const navigate = useNavigate();
-
-  // Check the user's role on component mount
-  useEffect(() => {
-    fetch(`${API_BASE}/auth/session`, {
-      credentials: "include", // Send session cookies for role check
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.role !== "PROFESSOR") {
-          navigate("/"); // Redirect if the user is not a professor
-        } else {
-          setIsProfessor(true); // Set the user as a professor if role matches
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking user role:", error);
-        navigate("/"); // Redirect if there's an error checking the role
-      });
-  }, [navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -54,10 +32,6 @@ function AddStudent() {
         setIsLoading(false); // Reset loading state
       });
   };
-
-  if (!isProfessor) {
-    return null; // Render nothing if the user is not a professor
-  }
 
   return (
     <div id="root">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 
@@ -6,32 +6,6 @@ function RegisterStudent() {
   const [studentId, setStudentId] = useState("");
   const [courses, setCourses] = useState([]);
   const [selectedCourses, setSelectedCourses] = useState([]);
-  const [isStudent, setIsStudent] = useState(false); // Track if the user is a student
-
-  // Fetch courses from the backend
-  useEffect(() => {
-
-    // Check if the logged-in user is a student and get their student ID
-    fetch(`${API_BASE}/auth/session`, {
-      credentials: "include", // Send session cookies for role check
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.role === "STUDENT") {
-          setIsStudent(true);
-          setStudentId(data.studentId); // Set the student ID from session or backend
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking user role:", error);
-      });
-//     fetch(`${API_BASE}/subjects`, {
-//         credentials: "include", // Send session cookies for role check
-//         })
-//       .then((res) => res.json())
-//       .then((data) => setCourses(data))
-//       .catch((error) => console.error("Error fetching courses:", error));
-  }, []);
 
   const findAvailableCourses = (e) => {
     e.preventDefault();
@@ -120,7 +94,6 @@ function RegisterStudent() {
             required
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
-            disabled={isStudent} // Disable the input if the user is a student
             className="w-full p-2 border rounded"
           />
             <button

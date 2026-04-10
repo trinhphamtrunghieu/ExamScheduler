@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
-import { useNavigate } from "react-router-dom";
 import { Download, Upload } from "lucide-react";
 
 function Registrations() {
     const [registrations, setRegistrations] = useState([]);
-    const [userRole, setUserRole] = useState(null); // Store user role
     const [filterType, setFilterType] = useState("ma_sinh_vien"); // Default filter by student code
     const [filterValue, setFilterValue] = useState(""); // Value for the selected filter
     const [sortConfig, setSortConfig] = useState({ key: 'ma_sinh_vien', direction: 'asc' });
@@ -15,32 +13,10 @@ function Registrations() {
     const [importError, setImportError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
-    const navigate = useNavigate();
 
-    // Check session and fetch registration
+    // Fetch registrations on mount
     useEffect(() => {
-        // Fetch user session first
-        fetch(`${API_BASE}/auth/session`, {
-            method: "GET",
-            credentials: "include", // ✅ Ensures session cookies are sent
-        })
-        .then((res) => res.json())
-        .then((data) => {
-            if (!data.role) {
-                navigate("/"); // Redirect to login if no session
-            } else {
-                setUserRole(data.role);
-                if (data.role === "PROFESSOR" || data.role === "STUDENT") {
-                    fetchRegistrations(); // Only fetch students if professor
-                } else {
-                    navigate("/")
-                }
-            }
-        })
-        .catch((error) => {
-            console.error("Error checking session:", error);
-            navigate("/");
-        });
+        fetchRegistrations();
     }, []);
 
   const fetchRegistrations = () => {
@@ -55,7 +31,6 @@ function Registrations() {
       })
       .catch((error) => {
         console.error("Error fetching registrations:", error);
-        navigate("/"); // Redirect to login if there's an error
       });
   };
 
@@ -189,7 +164,7 @@ function Registrations() {
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={isImporting || userRole === "STUDENT"}
+                            disabled={isImporting}
                             className="import-export-button"
                         >
                             <Upload className="w-4 h-4 mr-2" />

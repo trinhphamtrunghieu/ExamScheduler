@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
-import { useNavigate } from "react-router-dom";
 import { Download, Upload } from "lucide-react";
 
 function Students() {
@@ -9,36 +8,15 @@ function Students() {
     const [filterType, setFilterType] = useState("name");
     const [filterValue, setFilterValue] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
-    const [userRole, setUserRole] = useState(null); // Store user role
-    const navigate = useNavigate();
     const [isImporting, setIsImporting] = useState(false);
     const [importMessage, setImportMessage] = useState("");
     const [importError, setImportError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
 
-  // Check session and fetch students
+  // Fetch students on mount
   useEffect(() => {
-    // Fetch user session first
-    fetch(`${API_BASE}/auth/session`, {
-      method: "GET",
-      credentials: "include", // ✅ Ensures session cookies are sent
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.role) {
-          navigate("/"); // Redirect to login if no session
-        } else {
-          setUserRole(data.role);
-          if (data.role === "PROFESSOR") {
-            fetchStudents(); // Only fetch students if professor
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking session:", error);
-        navigate("/");
-      });
+    fetchStudents();
   }, []);
 
   // Fetch students
