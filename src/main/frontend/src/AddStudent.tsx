@@ -3,7 +3,7 @@ import { API_BASE } from "./common.tsx";
 import NavBar from './NavBar.tsx'; // Assuming you have NavBar component
 
 function AddStudent() {
-  const [student, setStudent] = useState({ ma_sinh_vien: "", ten_sinh_vien: "" });
+  const [student, setStudent] = useState({ id: "", name: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -22,7 +22,7 @@ function AddStudent() {
             alert(`${data.error}`);
         } else {
             setMessage("Student added successfully!");
-            setStudent({ ma_sinh_vien: "", ten_sinh_vien: "" }); // Clear the form fields
+            setStudent({ id: "", name: "" }); // Clear the form fields
             setIsLoading(false); // Reset loading state
         }
       })
@@ -62,9 +62,9 @@ function AddStudent() {
                     type="text"
                     id="ma_sinh_vien"
                     placeholder="Mã Sinh Viên"
-                    value={student.ma_sinh_vien}
+                    value={student.id}
                     onChange={(e) =>
-                      setStudent({ ...student, ma_sinh_vien: e.target.value })
+                      setStudent({ ...student, id: e.target.value })
                     }
                     className="p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
@@ -81,9 +81,9 @@ function AddStudent() {
                     type="text"
                     id="ten_sinh_vien"
                     placeholder="Tên Sinh Viên"
-                    value={student.ten_sinh_vien}
+                    value={student.name}
                     onChange={(e) =>
-                      setStudent({ ...student, ten_sinh_vien: e.target.value })
+                      setStudent({ ...student, name: e.target.value })
                     }
                     className="p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
