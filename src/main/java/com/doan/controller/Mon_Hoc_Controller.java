@@ -163,7 +163,7 @@ public class Mon_Hoc_Controller {
 	public ResponseEntity<Map<String, Object>> detectSubjectImportHeaders(@RequestParam("file") MultipartFile file) {
 		Map<String, Object> response = new HashMap<>();
 		try {
-			response.put("headers", Helper.detectHeaders(file.getBytes()));
+			response.put("headers", Helper.detectHeaders(file.getBytes(), REQUIRED_HEADERS));
 			response.put("expectedHeaders", REQUIRED_HEADERS);
 			return ResponseEntity.ok(response);
 		} catch (Exception e) {

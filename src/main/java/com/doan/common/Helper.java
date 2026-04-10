@@ -103,6 +103,13 @@ public class Helper {
 	}
 
 	public static List<String> detectHeaders(byte[] fileBytes) throws IOException {
+		return detectHeaders(fileBytes, null);
+	}
+
+	public static List<String> detectHeaders(byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
+		HeaderDetectionCandidate bestCandidate = null;
+		boolean hasExpectedHeaders = expectedHeaders != null && !expectedHeaders.isEmpty();
+
 		for (Charset charset : CANDIDATE_CHARSETS) {
 			try {
 				List<String> lines = new ArrayList<>();
@@ -116,14 +123,79 @@ public class Helper {
 				for (String line : lines) {
 					if (line.trim().isEmpty()) continue;
 					HeaderLineInfo info = parseLineToHeaderInfo(line);
-					if (info.headers.stream().filter(h -> !h.isBlank()).count() >= 2) {
+					if (info.headers.stream().filter(h -> !h.isBlank()).count() < 2) continue;
+
+					int expectedMatchCount = countExpectedHeaderMatches(expectedHeaders, info.headers);
+					int replacementCharCount = countReplacementCharacters(info.headers);
+					HeaderDetectionCandidate current = new HeaderDetectionCandidate(
+							info.headers,
+							expectedMatchCount,
+							replacementCharCount
+					);
+
+					if (isBetterHeaderCandidate(current, bestCandidate, hasExpectedHeaders)) {
+						bestCandidate = current;
+					}
+
+					if (hasExpectedHeaders
+							&& expectedMatchCount == expectedHeaders.size()
+							&& replacementCharCount == 0) {
 						return info.headers;
 					}
 				}
 			} catch (Exception ignored) {
 			}
 		}
+		if (bestCandidate != null) {
+			return bestCandidate.headers;
+		}
 		throw new IllegalStateException("Unable to detect CSV headers");
+	}
+
+	private static int countExpectedHeaderMatches(Set<String> expectedHeaders, List<String> actualHeaders) {
+		if (expectedHeaders == null || expectedHeaders.isEmpty()) return 0;
+
+		Map<String, String> normalizedToActual = new LinkedHashMap<>();
+		for (String header : actualHeaders) {
+			normalizedToActual.putIfAbsent(normalizeHeader(header), header);
+		}
+
+		int matches = 0;
+		for (String expected : expectedHeaders) {
+			if (normalizedToActual.containsKey(normalizeHeader(expected))) {
+				matches++;
+			}
+		}
+		return matches;
+	}
+
+	private static int countReplacementCharacters(List<String> headers) {
+		int count = 0;
+		for (String header : headers) {
+			for (int i = 0; i < header.length(); i++) {
+				if (header.charAt(i) == '\uFFFD') {
+					count++;
+				}
+			}
+		}
+		return count;
+	}
+
+	private static boolean isBetterHeaderCandidate(HeaderDetectionCandidate current,
+	                                               HeaderDetectionCandidate best,
+	                                               boolean hasExpectedHeaders) {
+		if (best == null) return true;
+
+		if (hasExpectedHeaders && current.expectedMatchCount != best.expectedMatchCount) {
+			return current.expectedMatchCount > best.expectedMatchCount;
+		}
+		if (current.replacementCharCount != best.replacementCharCount) {
+			return current.replacementCharCount < best.replacementCharCount;
+		}
+		if (current.headers.size() != best.headers.size()) {
+			return current.headers.size() > best.headers.size();
+		}
+		return false;
 	}
 
 	private static HeaderLineInfo findHeaderLine(List<String> allLines,
@@ -221,6 +293,18 @@ public class Helper {
 		int headerLineIndex = -1;
 		char delimiter = ',';
 		List<String> headers = new ArrayList<>();
+	}
+
+	private static class HeaderDetectionCandidate {
+		List<String> headers;
+		int expectedMatchCount;
+		int replacementCharCount;
+
+		HeaderDetectionCandidate(List<String> headers, int expectedMatchCount, int replacementCharCount) {
+			this.headers = headers;
+			this.expectedMatchCount = expectedMatchCount;
+			this.replacementCharCount = replacementCharCount;
+		}
 	}
 
 	public static String getValue(CSVRecord record, Map<String, String> resolvedHeaders, String expectedHeader) {

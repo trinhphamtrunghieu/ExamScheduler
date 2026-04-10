@@ -3,6 +3,7 @@ package com.doan.common;
 import org.apache.commons.csv.CSVRecord;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.List;
@@ -51,5 +52,18 @@ class HelperTest {
 		assertEquals(1, parsed.records.size());
 		assertEquals("SV03", Helper.getValue(parsed.records.get(0), parsed.resolvedHeaders, "MSSV"));
 		assertEquals("Lê Văn C", Helper.getValue(parsed.records.get(0), parsed.resolvedHeaders, "Họ tên"));
+	}
+
+	@Test
+	void detectHeaders_shouldDecodeWindows1258VietnameseHeaders() throws Exception {
+		String header = Normalizer.normalize("Họ tên", Normalizer.Form.NFD);
+		String studentName = Normalizer.normalize("Phạm Văn D", Normalizer.Form.NFD);
+		String csv = "MSSV," + header + "\nSV04," + studentName + "\n";
+		byte[] bytes = csv.getBytes(Charset.forName("windows-1258"));
+
+		List<String> headers = Helper.detectHeaders(bytes, Set.of("MSSV", "Họ tên"));
+
+		assertEquals("MSSV", headers.get(0));
+		assertEquals(-1, headers.get(1).indexOf('\uFFFD'));
 	}
 }
