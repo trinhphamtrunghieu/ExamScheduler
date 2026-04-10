@@ -165,20 +165,6 @@ function Generate() {
     return 0;
   });
 
-  if (isLoading) {
-    return (
-      <div id="root">
-        <NavBar />
-        <div className="spacing"></div>
-        <div className="content-area">
-          <div className="spinner-container">
-            <div className="spinner"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const handleExportCSV = async () => {
     if (schedule.length === 0) {
       alert("No schedule data to export!");
@@ -300,6 +286,11 @@ function Generate() {
           </div>
 
           <div className="result-section">
+            {isLoading ? (
+              <div className="spinner-container">
+                <div className="spinner"></div>
+              </div>
+            ) : (
               <div className="table-container">
                 <div className="result-section">
                     <div className="result-header">
@@ -345,6 +336,7 @@ function Generate() {
                   </tbody>
                 </table>
               </div>
+            )}
           </div>
         </div>
       </div>
