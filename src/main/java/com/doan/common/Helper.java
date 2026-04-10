@@ -246,11 +246,12 @@ public class Helper {
 				mapped = requestedHeaderMapping.get(expected);
 			}
 			String resolved = resolveSingleHeader(expected, mapped, actualHeaders, normalizedToActual);
-			if (resolved == null) {
-				throw new IllegalStateException("Missing required header: " + expected);
-			}
+			// if (resolved == null) {
+			// 	throw new IllegalStateException("Missing required header: " + expected);
+			// }
 			result.put(expected, resolved);
 		}
+		System.out.println(result);
 		return result;
 	}
 
