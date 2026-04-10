@@ -4,23 +4,15 @@ import com.doan.common.Helper;
 import com.doan.dto.Sinh_Vien;
 import com.doan.model.Cache;
 import com.doan.model.Student;
-import com.doan.model.UserRole;
 import com.opencsv.CSVWriter;
-import jakarta.servlet.http.HttpSession;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.lang3.CharSet;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -31,20 +23,14 @@ import java.util.stream.Collectors;
 public class Sinh_Vien_Controller {
 
 	@GetMapping("/list")
-	public ResponseEntity<List<Student>> getAllStudent(HttpSession session) {
-		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
-			Cache cache = Cache.cache;
-			List<Student> result = new ArrayList<>();
-			result.addAll(cache.students.values());
-			return ResponseEntity.ok(result);
-		}
-		return ResponseEntity.badRequest().build();
+	public ResponseEntity<List<Student>> getAllStudent() {
+		Cache cache = Cache.cache;
+		List<Student> result = new ArrayList<>(cache.students.values());
+		return ResponseEntity.ok(result);
 	}
+
 	@PostMapping("/add")
-	public ResponseEntity<?> addStudent(@RequestBody Student newStudent, HttpSession session) {
-		if (!Common.checkAllowRole(session, UserRole.PROFESSOR)) {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-		}
+	public ResponseEntity<?> addStudent(@RequestBody Student newStudent) {
 		if (newStudent.getId() == null || newStudent.getName() == null) {
 			return ResponseEntity.badRequest().build();
 		}
@@ -56,6 +42,7 @@ public class Sinh_Vien_Controller {
 		Cache.cache.students.put(newStudent.getId(), newStudent);
 		return ResponseEntity.ok(newStudent);
 	}
+
 	@PostMapping("/export")
 	public ResponseEntity<byte[]> exportStudents(@RequestBody List<Map<String, Object>> students,
 	                                             @RequestParam(defaultValue = "UTF-8") String encoding // default to UTF-8

@@ -2,12 +2,10 @@ package com.doan.controller;
 
 import com.doan.dto.*;
 import com.doan.model.*;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
@@ -19,24 +17,12 @@ import java.util.stream.Collectors;
 public class Dang_Ky_Controller {
 
 	@GetMapping("/list")
-	public ResponseEntity<?> getStudentRegistration(HttpSession session) {
-		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
-			HashMap<Student, List<Subject>> registrations = new HashMap<>();
-			List<Registration> result = new ArrayList<>();
-			List<Student> students = new ArrayList<>(Cache.cache.students.values());
-			for (Student student : students) {
-				result.addAll(student.registrations);
-			}
-			return ResponseEntity.ok(result);
+	public ResponseEntity<?> getStudentRegistration() {
+		List<Registration> result = new ArrayList<>();
+		for (Student student : Cache.cache.students.values()) {
+			result.addAll(student.registrations);
 		}
-		String studentID = (String) session.getAttribute("studentId");
-		Student student = Cache.cache.students.get(studentID);
-		if (student != null) {
-			List<Registration> result = new ArrayList<>(student.getRegistrations());
-			System.out.println("Student registration: " + result.size() + "  " + result);
-			return ResponseEntity.ok(result);
-		}
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		return ResponseEntity.ok(result);
 	}
 
 	@PostMapping("/register")
@@ -84,28 +70,13 @@ public class Dang_Ky_Controller {
 	}
 
 	@PostMapping("/export")
-	public ResponseEntity<?> exportRegistration(HttpSession session) {
+	public ResponseEntity<?> exportRegistration() {
 		List<Registration> registrations = new ArrayList<>();
-		Cache cache = Cache.cache;
-		System.out.println(session.getAttribute("userRole"));
-		if (Common.checkAllowRole(session, UserRole.PROFESSOR)) {
-			for (Student student : cache.students.values()) {
-				registrations.addAll(student.getRegistrations());
-			}
-		} else if (Common.checkAllowRole(session, UserRole.STUDENT)) {
-			Student student = cache.students.get((String) session.getAttribute("studentId"));
-			if (student == null) {
-				Map<String, Object> response = new HashMap<>();
-				response.put("error", "no data to export");
-				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-			} else {
-				System.out.println("fetch registration for: " + student.id);
-				registrations.addAll(student.getRegistrations());
-			}
+		for (Student student : Cache.cache.students.values()) {
+			registrations.addAll(student.getRegistrations());
 		}
 		try {
 			if (registrations.isEmpty()) {
-				System.out.println("Registrations empty");
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "no data to export");
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);

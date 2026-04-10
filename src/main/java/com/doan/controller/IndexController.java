@@ -15,7 +15,7 @@ public class IndexController implements ErrorController {
 	}
 
 	// Handle all unknown routes (React Router support)
-	@RequestMapping({"/add-course", "/add-student", "/login", "/students", "/subjects", "/registrations"})
+	@RequestMapping({"/add-course", "/add-student", "/students", "/subjects", "/registrations"})
 	public String forwardToIndex() {
 		return "forward:/index.html";
 	}
