@@ -148,8 +148,9 @@ public class Helper {
 		char delimiter = countChar(line, ';') > countChar(line, ',') ? ';' : ',';
 		info.delimiter = delimiter;
 		try (CSVParser parser = CSVParser.parse(stripBom(line), CSVFormat.DEFAULT.withDelimiter(delimiter))) {
-			if (!parser.getRecords().isEmpty()) {
-				CSVRecord record = parser.getRecords().get(0);
+			List<CSVRecord> records = parser.getRecords();
+			if (!records.isEmpty()) {
+				CSVRecord record = records.get(0);
 				for (String value : record) {
 					info.headers.add(stripBom(value).trim());
 				}

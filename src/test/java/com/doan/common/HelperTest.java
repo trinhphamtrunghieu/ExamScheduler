@@ -3,7 +3,6 @@ package com.doan.common;
 import org.apache.commons.csv.CSVRecord;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.List;
@@ -27,10 +26,14 @@ class HelperTest {
 	}
 
 	@Test
-	void parseCsv_shouldHandleWindowsVietnameseEncoding() throws Exception {
+	void parseCsv_shouldHandleUtf8BomAndVietnameseHeaders() throws Exception {
 		String csv = "MSSV,Họ tên\nSV02,Trần Thị B\n";
-		byte[] windows1258Bytes = csv.getBytes(Charset.forName("windows-1258"));
-		Helper.ParsedCSV parsed = Helper.parseCSVFromValidHeader(windows1258Bytes, Set.of("MSSV", "Họ tên"), null);
+		byte[] utf8Bom = new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+		byte[] body = csv.getBytes(StandardCharsets.UTF_8);
+		byte[] bytes = new byte[utf8Bom.length + body.length];
+		System.arraycopy(utf8Bom, 0, bytes, 0, utf8Bom.length);
+		System.arraycopy(body, 0, bytes, utf8Bom.length, body.length);
+		Helper.ParsedCSV parsed = Helper.parseCSVFromValidHeader(bytes, Set.of("MSSV", "Họ tên"), null);
 
 		assertEquals(1, parsed.records.size());
 		assertEquals("SV02", Helper.getValue(parsed.records.get(0), parsed.resolvedHeaders, "MSSV"));
@@ -50,4 +53,3 @@ class HelperTest {
 		assertEquals("Lê Văn C", Helper.getValue(parsed.records.get(0), parsed.resolvedHeaders, "Họ tên"));
 	}
 }
-
