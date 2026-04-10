@@ -2,9 +2,6 @@ package com.doan.controller;
 
 import com.doan.common.Helper;
 import com.doan.model.Cache;
-import com.doan.model.InClass;
-import com.doan.model.Student;
-import com.doan.model.Subject;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -13,15 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.sql.Date;
 import java.util.*;
 
 @RestController
 @RequestMapping("/config")
 public class ConfigurationController {
 	private Cache cache = Cache.cache;
+	private static final Set<String> REQUIRED_HEADERS = Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên");
 
 	@GetMapping("/export")
 	public ResponseEntity<?> exportRegistration() {
@@ -52,15 +47,17 @@ public class ConfigurationController {
 	}
 
 	@PostMapping("/import")
-	public ResponseEntity<Map<String, Object>> importRegistration(@RequestBody @RequestParam("file") MultipartFile file) {
+	public ResponseEntity<Map<String, Object>> importRegistration(@RequestParam("file") MultipartFile file,
+	                                                              @RequestParam(value = "headerMapping", required = false) String headerMappingRaw) {
 		Map<String, Object> response = new HashMap<>();
 		try {
 			if (file.isEmpty()) {
 				response.put("error", "Please upload a csv file to import");
 			}
-			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8),
-					Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"));
-			cache.importAll(records, false);
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMappingRaw);
+			Map<String, String> resolvedHeaders = new HashMap<>();
+			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
+			cache.importAll(records, false, resolvedHeaders);
 			response.put("message", "Imported successfully");
 			return ResponseEntity.ok(response);
 		} catch (IllegalStateException ex) {
@@ -70,6 +67,19 @@ public class ConfigurationController {
 	    } catch (Exception e) {
 			e.printStackTrace();
 			return ResponseEntity.internalServerError().build();
+		}
+	}
+
+	@PostMapping("/import/headers")
+	public ResponseEntity<Map<String, Object>> detectConfigImportHeaders(@RequestParam("file") MultipartFile file) {
+		Map<String, Object> response = new HashMap<>();
+		try {
+			response.put("headers", Helper.detectHeaders(file.getBytes()));
+			response.put("expectedHeaders", REQUIRED_HEADERS);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			response.put("error", "Cannot detect headers from CSV file");
+			return ResponseEntity.badRequest().body(response);
 		}
 	}
 
@@ -88,4 +98,5 @@ public class ConfigurationController {
 			return ResponseEntity.internalServerError().build();
 		}
 	}
+
 }

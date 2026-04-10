@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -22,6 +21,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/subjects")
 public class Mon_Hoc_Controller {
+	private static final Set<String> REQUIRED_HEADERS = Set.of("Mã lớp học", "TÊN MÔN HỌC", "GIẢNG VIÊN", "Ngày bắt đầu", "Ngày kết thúc");
 
 	@GetMapping("/list")
 	public ResponseEntity<List<Subject>> getAllSubject() {
@@ -86,7 +86,8 @@ public class Mon_Hoc_Controller {
 	}
 
 	@PostMapping("/import")
-	public ResponseEntity<Map<String, Object>> importSujects(@RequestBody @RequestParam("file") MultipartFile file) {
+	public ResponseEntity<Map<String, Object>> importSujects(@RequestParam("file") MultipartFile file,
+	                                                         @RequestParam(value = "headerMapping", required = false) String headerMappingRaw) {
 		Map<String, Object> response = new HashMap<>();
 		StringBuilder error = new StringBuilder();
 		try {
@@ -101,15 +102,16 @@ public class Mon_Hoc_Controller {
 					.collect(Collectors.toSet()));
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy"); // handles single-digit day/month
 			List<Subject> subjects = new ArrayList<>();
-			List<CSVRecord> records = Helper.parseCSVFromValidHeader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8),
-					Set.of("Mã lớp học", "TÊN MÔN HỌC", "GIẢNG VIÊN", "Ngày bắt đầu", "Ngày kết thúc"));
+			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMappingRaw);
+			Map<String, String> resolvedHeaders = new HashMap<>();
+			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
 			for (CSVRecord record : records) {
 				try {
-					String subjectID = record.get("Mã lớp học");
-					String subjectName = record.get("TÊN MÔN HỌC");
-					String teacher = record.get("GIẢNG VIÊN");
-					String startDate = record.get("Ngày bắt đầu");
-					String endDate = record.get("Ngày kết thúc");
+					String subjectID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
+					String subjectName = Helper.getValue(record, resolvedHeaders, "TÊN MÔN HỌC");
+					String teacher = Helper.getValue(record, resolvedHeaders, "GIẢNG VIÊN");
+					String startDate = Helper.getValue(record, resolvedHeaders, "Ngày bắt đầu");
+					String endDate = Helper.getValue(record, resolvedHeaders, "Ngày kết thúc");
 					int duration = 90;
 
 					// Skip if student ID already exists
@@ -129,7 +131,7 @@ public class Mon_Hoc_Controller {
 					existingIds.add(subjectID); // Prevent duplicates in same file
 					subjects.add(subject);
 				} catch (DateTimeParseException ex) {
-					String dateFailed = record.get("Mã lớp học");
+					String dateFailed = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 					error.append(dateFailed + " invalid datetime. format: d/M/yyyy").append("\n");
 				}
 			}
@@ -154,6 +156,19 @@ public class Mon_Hoc_Controller {
 			error.append("can not open file. ex: " + ex.toString());
 			response.put("error", error);
 			return ResponseEntity.internalServerError().body(response);
+		}
+	}
+
+	@PostMapping("/import/headers")
+	public ResponseEntity<Map<String, Object>> detectSubjectImportHeaders(@RequestParam("file") MultipartFile file) {
+		Map<String, Object> response = new HashMap<>();
+		try {
+			response.put("headers", Helper.detectHeaders(file.getBytes()));
+			response.put("expectedHeaders", REQUIRED_HEADERS);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			response.put("error", "Cannot detect headers from CSV file");
+			return ResponseEntity.badRequest().body(response);
 		}
 	}
 }
