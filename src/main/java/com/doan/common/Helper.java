@@ -10,6 +10,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -32,6 +34,20 @@ import java.util.stream.Collectors;
 import java.util.*;
 
 public class Helper {
+	private static final Logger log = LoggerFactory.getLogger(Helper.class);
+
+	private static final class XlsxRowData {
+		private final int rowIndex;
+		private final boolean hidden;
+		private final List<String> values;
+
+		private XlsxRowData(int rowIndex, boolean hidden, List<String> values) {
+			this.rowIndex = rowIndex;
+			this.hidden = hidden;
+			this.values = values;
+		}
+	}
+
 	public static class ParsedCSV {
 		public final List<CSVRecord> records;
 		public final Map<String, String> resolvedHeaders;
@@ -415,14 +431,15 @@ public class Helper {
 	}
 
 	private static List<String> detectXlsxHeaders(byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
-		List<List<String>> rows = readXlsxRows(fileBytes);
+		List<XlsxRowData> rows = readXlsxRows(fileBytes);
 		List<String> bestHeaders = null;
 		int bestExpectedMatch = -1;
 		int bestHeaderSize = -1;
 		boolean hasExpectedHeaders = expectedHeaders != null && !expectedHeaders.isEmpty();
 
-		for (List<String> row : rows) {
-			List<String> cleanedHeaders = cleanHeaders(row);
+		for (XlsxRowData row : rows) {
+			if (row.hidden) continue;
+			List<String> cleanedHeaders = cleanHeaders(row.values);
 			if (cleanedHeaders.size() < 2) continue;
 
 			int expectedMatchCount = countExpectedHeaderMatches(expectedHeaders, cleanedHeaders);
@@ -447,9 +464,19 @@ public class Helper {
 	private static byte[] convertXlsxToCsvBytes(byte[] fileBytes,
 	                                            Set<String> requiredHeaders,
 	                                            Map<String, String> requestedHeaderMapping) throws IOException {
-		List<List<String>> rows = readXlsxRows(fileBytes);
+		List<XlsxRowData> rows = readXlsxRows(fileBytes);
 		int headerRowIndex = findXlsxHeaderRowIndex(rows, requiredHeaders, requestedHeaderMapping);
-		List<String> headers = cleanHeaders(rows.get(headerRowIndex));
+		XlsxRowData headerRow = null;
+		for (XlsxRowData row : rows) {
+			if (row.rowIndex == headerRowIndex) {
+				headerRow = row;
+				break;
+			}
+		}
+		if (headerRow == null) {
+			throw new IllegalStateException("Unable to find headers in XLSX file");
+		}
+		List<String> headers = cleanHeaders(headerRow.values);
 		if (headers.isEmpty()) {
 			throw new IllegalStateException("Unable to find headers in XLSX file");
 		}
@@ -458,17 +485,32 @@ public class Helper {
 		     OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
 		     CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 			printer.printRecord(headers);
-			for (int rowIndex = headerRowIndex + 1; rowIndex < rows.size(); rowIndex++) {
-				List<String> rowValues = rows.get(rowIndex);
+			for (XlsxRowData row : rows) {
+				int excelRowNumber = row.rowIndex + 1;
+				if (row.rowIndex < headerRowIndex) {
+					log.info("row {} imported: false (before header)", excelRowNumber);
+					continue;
+				}
+				if (row.rowIndex == headerRowIndex) {
+					log.info("row {} imported: false (header)", excelRowNumber);
+					continue;
+				}
+				if (row.hidden) {
+					log.info("row {} imported: false (hidden)", excelRowNumber);
+					continue;
+				}
 				List<String> record = new ArrayList<>();
 				boolean hasData = false;
 				for (int col = 0; col < headers.size(); col++) {
-					String value = col < rowValues.size() ? rowValues.get(col).trim() : "";
+					String value = col < row.values.size() ? row.values.get(col).trim() : "";
 					if (!value.isEmpty()) hasData = true;
 					record.add(value);
 				}
 				if (hasData) {
 					printer.printRecord(record);
+					log.info("row {} imported: true", excelRowNumber);
+				} else {
+					log.info("row {} imported: false (empty)", excelRowNumber);
 				}
 			}
 			printer.flush();
@@ -476,7 +518,7 @@ public class Helper {
 		}
 	}
 
-	private static int findXlsxHeaderRowIndex(List<List<String>> rows,
+	private static int findXlsxHeaderRowIndex(List<XlsxRowData> rows,
 	                                          Set<String> requiredHeaders,
 	                                          Map<String, String> requestedHeaderMapping) {
 		int bestIndex = -1;
@@ -484,19 +526,20 @@ public class Helper {
 		int bestHeaderSize = -1;
 		boolean hasExpectedHeaders = requiredHeaders != null && !requiredHeaders.isEmpty();
 
-		for (int i = 0; i < rows.size(); i++) {
-			List<String> cleanedHeaders = cleanHeaders(rows.get(i));
+		for (XlsxRowData row : rows) {
+			if (row.hidden) continue;
+			List<String> cleanedHeaders = cleanHeaders(row.values);
 			if (cleanedHeaders.size() < 2) continue;
 
 			try {
 				resolveHeaders(requiredHeaders, cleanedHeaders, requestedHeaderMapping);
 				int expectedMatchCount = countExpectedHeaderMatches(requiredHeaders, cleanedHeaders);
 				if (hasExpectedHeaders && expectedMatchCount == requiredHeaders.size()) {
-					return i;
+					return row.rowIndex;
 				}
 				if (expectedMatchCount > bestExpectedMatch
 						|| (expectedMatchCount == bestExpectedMatch && cleanedHeaders.size() > bestHeaderSize)) {
-					bestIndex = i;
+					bestIndex = row.rowIndex;
 					bestExpectedMatch = expectedMatchCount;
 					bestHeaderSize = cleanedHeaders.size();
 				}
@@ -508,31 +551,27 @@ public class Helper {
 		throw new IllegalStateException("No valid XLSX header line found");
 	}
 
-	private static List<List<String>> readXlsxRows(byte[] fileBytes) throws IOException {
+	private static List<XlsxRowData> readXlsxRows(byte[] fileBytes) throws IOException {
 		try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
 			Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
 			if (sheet == null) {
 				throw new IllegalStateException("XLSX file does not contain sheets");
 			}
 
-			List<List<String>> rows = new ArrayList<>();
+			List<XlsxRowData> rows = new ArrayList<>();
 			DataFormatter formatter = new DataFormatter();
 			for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
 				Row row = sheet.getRow(rowIndex);
-				if (isHiddenXlsxRow(row)) {
-					continue;
-				}
-				if (row == null || row.getLastCellNum() < 0) {
-					rows.add(new ArrayList<>());
-					continue;
-				}
+				boolean hidden = row != null && isHiddenXlsxRow(row);
 				List<String> values = new ArrayList<>();
-				for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
-					Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-					String value = cell == null ? "" : formatter.formatCellValue(cell);
-					values.add(stripBom(value).trim());
+				if (row != null && row.getLastCellNum() >= 0) {
+					for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
+						Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+						String value = cell == null ? "" : formatter.formatCellValue(cell);
+						values.add(stripBom(value).trim());
+					}
 				}
-				rows.add(values);
+				rows.add(new XlsxRowData(rowIndex, hidden, values));
 			}
 			return rows;
 		}
