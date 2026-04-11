@@ -60,11 +60,11 @@ public class Mon_Hoc_Controller {
 			byte[] exportedBytes = exportAsXlsx
 					? Common.exportXlsx(
 					"Subjects",
-					new String[] {"MSSV", "Tên Môn Học", "Gỉảng viên", "Ngày bắt đầu", "Ngày kết thúc", "Thời Lượng Thi"},
+					new String[] {"MSSV", "Tên Môn Học", "Giảng viên", "Ngày bắt đầu", "Ngày kết thúc", "Thời Lượng Thi"},
 					rows
 			)
 					: Common.exportCsv(
-					new String[] {"MSSV", "Tên Môn Học", "Gỉảng viên", "Ngày bắt đầu", "Ngày kết thúc", "Thời Lượng Thi"},
+					new String[] {"MSSV", "Tên Môn Học", "Giảng viên", "Ngày bắt đầu", "Ngày kết thúc", "Thời Lượng Thi"},
 					rows
 			);
 			String fileExtension = exportAsXlsx ? "xlsx" : "csv";
