@@ -5,6 +5,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
@@ -78,7 +79,7 @@ class HelperTest {
 
 	@Test
 	void parseTabularFile_shouldSkipHiddenXlsxRows() throws Exception {
-		byte[] xlsxBytes = createXlsxWithHiddenDataRow();
+		byte[] xlsxBytes = createXlsxWithMultipleHiddenDataRows();
 		Map<String, String> resolvedHeaders = new LinkedHashMap<>();
 
 		List<CSVRecord> records = Helper.parseTabularFileFromValidHeaderWithResolvedHeaders(
@@ -95,7 +96,7 @@ class HelperTest {
 
 	@Test
 	void importSummary_shouldCountOnlyVisibleNonEmptyRows() throws Exception {
-		byte[] xlsxBytes = createXlsxWithHiddenDataRow();
+		byte[] xlsxBytes = createXlsxWithMultipleHiddenDataRows();
 		Map<String, String> resolvedHeaders = new LinkedHashMap<>();
 		List<CSVRecord> records = Helper.parseTabularFileFromValidHeaderWithResolvedHeaders(
 				"registrations.xlsx",
@@ -111,7 +112,7 @@ class HelperTest {
 		assertEquals(1, summary.importedLines);
 	}
 
-	private static byte[] createXlsxWithHiddenDataRow() throws Exception {
+	private static byte[] createXlsxWithMultipleHiddenDataRows() throws Exception {
 		try (Workbook workbook = new XSSFWorkbook();
 		     ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 			Sheet sheet = workbook.createSheet("Sheet1");
@@ -136,6 +137,14 @@ class HelperTest {
 			hiddenRow.createCell(3).setCellValue("Lý");
 			hiddenRow.createCell(4).setCellValue("GV B");
 			hiddenRow.setZeroHeight(true);
+
+			XSSFRow hiddenByFlagRow = (XSSFRow) sheet.createRow(3);
+			hiddenByFlagRow.createCell(0).setCellValue("SV03");
+			hiddenByFlagRow.createCell(1).setCellValue("Lê Văn C");
+			hiddenByFlagRow.createCell(2).setCellValue("LHP003");
+			hiddenByFlagRow.createCell(3).setCellValue("Hóa");
+			hiddenByFlagRow.createCell(4).setCellValue("GV C");
+			hiddenByFlagRow.getCTRow().setHidden(true);
 
 			workbook.write(outputStream);
 			return outputStream.toByteArray();

@@ -8,6 +8,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.BufferedReader;
@@ -518,7 +519,7 @@ public class Helper {
 			DataFormatter formatter = new DataFormatter();
 			for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
 				Row row = sheet.getRow(rowIndex);
-				if (row != null && row.getZeroHeight()) {
+				if (isHiddenXlsxRow(row)) {
 					continue;
 				}
 				if (row == null || row.getLastCellNum() < 0) {
@@ -535,6 +536,20 @@ public class Helper {
 			}
 			return rows;
 		}
+	}
+
+	private static boolean isHiddenXlsxRow(Row row) {
+		if (row == null) {
+			return false;
+		}
+		if (row.getZeroHeight()) {
+			return true;
+		}
+		if (row instanceof XSSFRow) {
+			XSSFRow xssfRow = (XSSFRow) row;
+			return xssfRow.getCTRow().isSetHidden() && xssfRow.getCTRow().getHidden();
+		}
+		return false;
 	}
 
 	private static List<String> cleanHeaders(List<String> headers) {
