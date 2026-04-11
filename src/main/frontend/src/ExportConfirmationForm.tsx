@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { ExportFormat, SaveFileHandleLike, chooseSaveLocation, ensureExtension } from "./exportUtils";
+import { ExportFormat } from "./exportUtils";
 
 type ExportConfirmationFormProps = {
   open: boolean;
   isProcessing: boolean;
   defaultFileName: string;
   onCancel: () => void;
-  onSubmit: (payload: { format: ExportFormat; fileName: string; saveHandle: SaveFileHandleLike | null }) => void;
+  onSubmit: (payload: { format: ExportFormat; fileName: string }) => void;
 };
 
 function ExportConfirmationForm({
@@ -18,31 +18,12 @@ function ExportConfirmationForm({
 }: ExportConfirmationFormProps) {
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [fileName, setFileName] = useState(defaultFileName);
-  const [saveHandle, setSaveHandle] = useState<SaveFileHandleLike | null>(null);
-  const [locationLabel, setLocationLabel] = useState("Chưa chọn vị trí");
 
   useEffect(() => {
     if (!open) return;
     setFormat("csv");
     setFileName(defaultFileName);
-    setSaveHandle(null);
-    setLocationLabel("Chưa chọn vị trí");
   }, [open, defaultFileName]);
-
-  const handleChooseLocation = async () => {
-    try {
-      const handle = await chooseSaveLocation(fileName, format);
-      if (!handle) {
-        setLocationLabel("Trình duyệt sẽ dùng thư mục tải xuống mặc định");
-        return;
-      }
-      setSaveHandle(handle);
-      setLocationLabel(handle.name || ensureExtension(fileName, format));
-    } catch (error) {
-      console.error("Choose save location error:", error);
-      setLocationLabel("Không thể chọn vị trí lưu");
-    }
-  };
 
   if (!open) return null;
 
@@ -71,18 +52,6 @@ function ExportConfirmationForm({
           disabled={isProcessing}
         />
       </div>
-      <div className="export-confirmation-row">
-        <span className="export-confirmation-label">Vị trí lưu</span>
-        <button
-          type="button"
-          onClick={handleChooseLocation}
-          disabled={isProcessing}
-          className="export-location-button"
-        >
-          Chọn vị trí lưu
-        </button>
-      </div>
-      <div className="export-location-label">{locationLabel}</div>
       <div className="export-confirmation-actions">
         <button
           type="button"
@@ -94,7 +63,7 @@ function ExportConfirmationForm({
         </button>
         <button
           type="button"
-          onClick={() => onSubmit({ format, fileName, saveHandle })}
+          onClick={() => onSubmit({ format, fileName })}
           disabled={isProcessing}
           className="export-submit-button"
         >
@@ -106,4 +75,3 @@ function ExportConfirmationForm({
 }
 
 export default ExportConfirmationForm;
-

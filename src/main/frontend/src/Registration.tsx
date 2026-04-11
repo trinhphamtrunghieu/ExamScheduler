@@ -84,7 +84,7 @@ function Registrations() {
     setFilterValue(e.target.value);
   };
 
-    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
+    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
         if (registrations.length === 0) {
             alert("No registration data to export!");
             return;
@@ -102,7 +102,7 @@ function Registrations() {
             }
 
             const blob = await response.blob();
-            await saveBlob(blob, fileName, format, saveHandle);
+            await saveBlob(blob, fileName, format);
             setShowExportForm(false);
         } catch (error) {
             console.error('Error exporting CSV:', error);
@@ -266,8 +266,8 @@ function Registrations() {
                       isProcessing={isExporting}
                       defaultFileName={`registration_${new Date().toISOString().split('T')[0]}`}
                       onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName, saveHandle }) => {
-                        void handleExportCSV(format, fileName, saveHandle);
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
                       }}
                     />
                     {importMessage && (

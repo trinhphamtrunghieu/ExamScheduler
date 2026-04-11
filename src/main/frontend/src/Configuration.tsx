@@ -139,7 +139,7 @@ function Configuration() {
         }
     };
 
-    const handleExportAllData = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
+    const handleExportAllData = async (format: "csv" | "xlsx", fileName: string) => {
       setIsExporting(true);
       setMessage("");
       setError("");
@@ -164,7 +164,7 @@ function Configuration() {
         }
 
         const blob = await response.blob();
-        await saveBlob(blob, fileName, format, saveHandle);
+        await saveBlob(blob, fileName, format);
         setMessage("Data exported successfully.");
         setShowExportForm(false);
       } catch (err) {
@@ -255,8 +255,8 @@ function Configuration() {
                       isProcessing={isExporting}
                       defaultFileName={`all_data_backup_${new Date().toISOString().split("T")[0]}`}
                       onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName, saveHandle }) => {
-                        void handleExportAllData(format, fileName, saveHandle);
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportAllData(format, fileName);
                       }}
                     />
                     {pendingFile && availableSheets.length > 0 && (

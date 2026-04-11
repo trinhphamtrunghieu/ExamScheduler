@@ -109,7 +109,7 @@ function Subjects() {
       setFilterValue(value);
     }
   };
-  const handleExportCSV = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
+  const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
     if (subjects.length === 0) {
       alert("No schedule data to export!");
       return;
@@ -131,7 +131,7 @@ function Subjects() {
       }
 
       const blob = await response.blob();
-      await saveBlob(blob, fileName, format, saveHandle);
+      await saveBlob(blob, fileName, format);
       setShowExportForm(false);
     } catch (error) {
       console.error('Error exporting CSV:', error);
@@ -259,8 +259,8 @@ function Subjects() {
                       isProcessing={isExporting}
                       defaultFileName={`subjects_${new Date().toISOString().split('T')[0]}`}
                       onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName, saveHandle }) => {
-                        void handleExportCSV(format, fileName, saveHandle);
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
                       }}
                     />
                     {importMessage && (

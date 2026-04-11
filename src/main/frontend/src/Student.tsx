@@ -68,7 +68,7 @@ function Students() {
     setFilterValue(e.target.value);
   };
 
-    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
+    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
         if (students.length === 0) {
             alert("No student data to export!");
             return;
@@ -90,7 +90,7 @@ function Students() {
             }
 
             const blob = await response.blob();
-            await saveBlob(blob, fileName, format, saveHandle);
+            await saveBlob(blob, fileName, format);
             setShowExportForm(false);
         } catch (error) {
                 console.error('Error exporting CSV:', error);
@@ -218,8 +218,8 @@ function Students() {
                       isProcessing={isExporting}
                       defaultFileName={`students_${new Date().toISOString().split('T')[0]}`}
                       onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName, saveHandle }) => {
-                        void handleExportCSV(format, fileName, saveHandle);
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
                       }}
                     />
                     {importMessage && (
