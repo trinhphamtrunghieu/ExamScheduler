@@ -212,20 +212,6 @@ function Configuration() {
                         <Download className="w-5 h-5 mr-2" />
                         {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
                         </button>
-                        <div className="w-full">
-                          <label htmlFor="config-export-format" className="block text-sm text-gray-700 mb-1">Định dạng xuất</label>
-                          <select
-                            id="config-export-format"
-                            aria-label="Export format"
-                            value={exportFormat}
-                            onChange={(e) => handleExportFormatChange(e.target.value)}
-                            disabled={isProcessing}
-                            className="p-3 rounded-lg border border-gray-300 w-full"
-                          >
-                            <option value="csv">CSV</option>
-                            <option value="xlsx">XLSX</option>
-                          </select>
-                        </div>
                         <button
                             onClick={handleSaveConfig}
                             disabled={isSaving}
@@ -235,6 +221,20 @@ function Configuration() {
                             {isSaving ? "Saving..." : "Lưu toàn bộ thông tin"}
                         </span>
                         </button>
+                    </div>
+                    <div className="export-format-section">
+                      <label htmlFor="config-export-format" className="export-format-label">Định dạng xuất</label>
+                      <select
+                        id="config-export-format"
+                        aria-label="Export format"
+                        value={exportFormat}
+                        onChange={(e) => handleExportFormatChange(e.target.value)}
+                        disabled={isProcessing}
+                        className="export-format-select"
+                      >
+                        <option value="csv">CSV</option>
+                        <option value="xlsx">XLSX</option>
+                      </select>
                     </div>
                     {pendingFile && detectedHeaders.length > 0 && (
                       <div className="confirm-header-section">
