@@ -3,6 +3,8 @@ package com.doan.controller;
 import com.doan.common.Helper;
 import com.doan.model.Cache;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -15,6 +17,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/config")
 public class ConfigurationController {
+	private static final Logger log = LoggerFactory.getLogger(ConfigurationController.class);
 	private Cache cache = Cache.cache;
 	private static final Set<String> REQUIRED_HEADERS = Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên");
 
@@ -69,8 +72,32 @@ public class ConfigurationController {
 					requestedHeaderMapping,
 					resolvedHeaders
 			);
-			cache.importAll(records, false, resolvedHeaders);
-			response.put("message", "Imported successfully");
+			Cache.ImportSummary summary = cache.importAll(records, false, resolvedHeaders);
+			response.put(
+					"message",
+					String.format(
+							Locale.ROOT,
+							"Imported successfully. Students: %d, Subjects: %d, Classes: %d, Lines in file: %d, Lines imported: %d",
+							summary.studentCount,
+							summary.subjectCount,
+							summary.classCount,
+							summary.totalLines,
+							summary.importedLines
+					)
+			);
+			response.put("studentCount", summary.studentCount);
+			response.put("subjectCount", summary.subjectCount);
+			response.put("classCount", summary.classCount);
+			response.put("lineCountInFile", summary.totalLines);
+			response.put("lineCountImported", summary.importedLines);
+			log.info(
+					"Config import summary -> students: {}, subjects: {}, classes: {}, lines in file: {}, lines imported: {}",
+					summary.studentCount,
+					summary.subjectCount,
+					summary.classCount,
+					summary.totalLines,
+					summary.importedLines
+			);
 			return ResponseEntity.ok(response);
 		} catch (IllegalStateException ex) {
 			ex.printStackTrace();

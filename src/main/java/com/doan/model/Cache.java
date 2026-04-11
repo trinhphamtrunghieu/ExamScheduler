@@ -19,6 +19,22 @@ import java.util.Map;
 import java.util.Set;
 
 public class Cache {
+	public static class ImportSummary {
+		public final int totalLines;
+		public final int importedLines;
+		public final int studentCount;
+		public final int subjectCount;
+		public final int classCount;
+
+		public ImportSummary(int totalLines, int importedLines, int studentCount, int subjectCount, int classCount) {
+			this.totalLines = totalLines;
+			this.importedLines = importedLines;
+			this.studentCount = studentCount;
+			this.subjectCount = subjectCount;
+			this.classCount = classCount;
+		}
+	}
+
 	public volatile Map<String, Student> students = new HashMap<>();
 	public volatile Map<String, Subject> subjects = new HashMap<>();
 	public volatile Map<String, InClass> classes = new HashMap<>();
@@ -181,11 +197,11 @@ public class Cache {
 		}
 	}
 
-	public void importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
-		importAll(records, isAppend, null);
+	public ImportSummary importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
+		return importAll(records, isAppend, null);
 	}
 
-	public void importAll(List<CSVRecord> records, boolean isAppend, Map<String, String> resolvedHeaders) throws IOException {
+	public ImportSummary importAll(List<CSVRecord> records, boolean isAppend, Map<String, String> resolvedHeaders) throws IOException {
 
 		Cache newCache;
 		if (isAppend) {
@@ -193,6 +209,8 @@ public class Cache {
 		} else {
 			newCache = new Cache();
 		}
+		int totalLines = records.size();
+		int importedLines = 0;
 		for (int i = 0; i < records.size(); i++) {
 			CSVRecord record = records.get(i);
 			//STT, MSSV, Họ tên, Mã lớp học, Môn học, Giáo viên, Lớp
@@ -213,6 +231,7 @@ public class Cache {
 				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 			}
 			if (subjectName.isEmpty()) continue;
+			importedLines++;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {
 				student = new Student(studentID, studentName);
@@ -232,5 +251,12 @@ public class Cache {
 			student.registerSubject(subject);
 		}
 		cache = newCache;
+		return new ImportSummary(
+				totalLines,
+				importedLines,
+				newCache.students.size(),
+				newCache.subjects.size(),
+				newCache.classes.size()
+		);
 	}
 }
