@@ -14,8 +14,50 @@ function Configuration() {
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
+    const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+    const [selectedSheet, setSelectedSheet] = useState("");
     const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
     const exportFormatOptions = new Set(["csv", "xlsx"]);
+
+    const detectImportHeaders = async (file: File, sheetName?: string) => {
+      const headersFormData = new FormData();
+      headersFormData.append("file", file);
+      if (sheetName) {
+        headersFormData.append("sheetName", sheetName);
+      }
+
+      const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
+        method: "POST",
+        credentials: "include",
+        body: headersFormData,
+      });
+      const headerData = await headersResponse.json();
+      if (!headersResponse.ok) {
+        throw new Error(headerData.error || "Cannot detect headers");
+      }
+
+      const incomingHeaders = (headerData.headers || []) as string[];
+      const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
+      setDetectedHeaders(normalizedIncomingHeaders);
+
+      const incomingSheets = (headerData.sheetNames || []) as string[];
+      setAvailableSheets(incomingSheets);
+      if (incomingSheets.length === 0) {
+        setSelectedSheet("");
+      } else if (sheetName && incomingSheets.includes(sheetName)) {
+        setSelectedSheet(sheetName);
+      } else if (!incomingSheets.includes(selectedSheet)) {
+        setSelectedSheet(incomingSheets[0]);
+      }
+
+      const defaultMapping: Record<string, string> = {};
+      expectedHeaders.forEach((expected) => {
+        const expectedNormalized = normalizeHeaderText(expected);
+        const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
+        defaultMapping[expected] = exact || "";
+      });
+      setHeaderMapping(defaultMapping);
+    };
 
     const handleImportAllData = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -23,35 +65,31 @@ function Configuration() {
         setPendingFile(file);
         setMessage("");
         setError("");
-        const headersFormData = new FormData();
-        headersFormData.append("file", file);
+        setDetectedHeaders([]);
+        setHeaderMapping({});
+        setAvailableSheets([]);
+        setSelectedSheet("");
         try {
-          const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
-            method: "POST",
-            credentials: "include",
-            body: headersFormData,
-          });
-          const headerData = await headersResponse.json();
-          if (!headersResponse.ok) {
-            setError(headerData.error || "Cannot detect headers");
-            return;
-          }
-          const incomingHeaders = (headerData.headers || []) as string[];
-          const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
-          setDetectedHeaders(normalizedIncomingHeaders);
-          const defaultMapping: Record<string, string> = {};
-          expectedHeaders.forEach((expected) => {
-            const expectedNormalized = normalizeHeaderText(expected);
-            const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
-            defaultMapping[expected] = exact || "";
-          });
-          setHeaderMapping(defaultMapping);
+          await detectImportHeaders(file);
         } catch (err) {
           console.error("Header detection error:", err);
           setError("Cannot detect headers");
         } finally {
           if (fileInputRef.current) fileInputRef.current.value = "";
         }
+    };
+
+    const handleSheetChange = async (sheetName: string) => {
+      if (!pendingFile) return;
+      setSelectedSheet(sheetName);
+      setError("");
+      setMessage("");
+      try {
+        await detectImportHeaders(pendingFile, sheetName);
+      } catch (err) {
+        console.error("Header detection error:", err);
+        setError("Cannot detect headers");
+      }
     };
 
     const handleConfirmImportAllData = async () => {
@@ -67,6 +105,9 @@ function Configuration() {
           .map(([expected, actual]) => `${expected}=${actual}`)
           .join(";");
         formData.append("headerMapping", serializedMapping);
+        if (selectedSheet) {
+          formData.append("sheetName", selectedSheet);
+        }
 
         try {
             const response = await fetch(`${API_BASE}/config/import`, {
@@ -89,6 +130,8 @@ function Configuration() {
             setPendingFile(null);
             setDetectedHeaders([]);
             setHeaderMapping({});
+            setAvailableSheets([]);
+            setSelectedSheet("");
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -236,6 +279,23 @@ function Configuration() {
                         <option value="xlsx">XLSX</option>
                       </select>
                     </div>
+                    {pendingFile && availableSheets.length > 0 && (
+                      <div className="export-format-section">
+                        <label htmlFor="config-import-sheet" className="export-format-label">Sheet name</label>
+                        <select
+                          id="config-import-sheet"
+                          aria-label="Import sheet name"
+                          value={selectedSheet}
+                          onChange={(e) => handleSheetChange(e.target.value)}
+                          disabled={isProcessing}
+                          className="export-format-select"
+                        >
+                          {availableSheets.map((sheetName) => (
+                            <option key={sheetName} value={sheetName}>{sheetName}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     {pendingFile && detectedHeaders.length > 0 && (
                       <div className="confirm-header-section">
                         {expectedHeaders.map((expected) => (

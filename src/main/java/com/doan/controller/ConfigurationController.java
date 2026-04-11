@@ -56,7 +56,8 @@ public class ConfigurationController {
 
 	@PostMapping("/import")
 	public ResponseEntity<Map<String, Object>> importRegistration(@RequestParam("file") MultipartFile file,
-	                                                              @RequestParam(value = "headerMapping", required = false) String headerMapping) {
+	                                                              @RequestParam(value = "headerMapping", required = false) String headerMapping,
+	                                                              @RequestParam(value = "sheetName", required = false) String sheetName) {
 		Map<String, Object> response = new HashMap<>();
 		try {
 			if (file.isEmpty()) {
@@ -70,7 +71,8 @@ public class ConfigurationController {
 					file.getBytes(),
 					REQUIRED_HEADERS,
 					requestedHeaderMapping,
-					resolvedHeaders
+					resolvedHeaders,
+					sheetName
 			);
 			Cache.ImportSummary summary = cache.importAll(records, false, resolvedHeaders);
 			response.put(
@@ -110,10 +112,12 @@ public class ConfigurationController {
 	}
 
 	@PostMapping("/import/headers")
-	public ResponseEntity<Map<String, Object>> detectConfigImportHeaders(@RequestParam("file") MultipartFile file) {
+	public ResponseEntity<Map<String, Object>> detectConfigImportHeaders(@RequestParam("file") MultipartFile file,
+	                                                                    @RequestParam(value = "sheetName", required = false) String sheetName) {
 		Map<String, Object> response = new HashMap<>();
 		try {
-			response.put("headers", Helper.detectHeadersFromFile(file.getOriginalFilename(), file.getBytes(), REQUIRED_HEADERS));
+			response.put("headers", Helper.detectHeadersFromFile(file.getOriginalFilename(), file.getBytes(), REQUIRED_HEADERS, sheetName));
+			response.put("sheetNames", Helper.listSheetNamesFromFile(file.getOriginalFilename(), file.getBytes()));
 			response.put("expectedHeaders", REQUIRED_HEADERS);
 			return ResponseEntity.ok(response);
 		} catch (Exception e) {

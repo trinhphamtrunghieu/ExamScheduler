@@ -112,6 +112,33 @@ class HelperTest {
 		assertEquals(1, summary.importedLines);
 	}
 
+	@Test
+	void listSheetNames_shouldReturnAllXlsxSheetNames() throws Exception {
+		byte[] xlsxBytes = createMultiSheetRegistrationXlsx();
+
+		List<String> sheetNames = Helper.listSheetNamesFromFile("registrations.xlsx", xlsxBytes);
+
+		assertEquals(List.of("Sheet A", "Sheet B"), sheetNames);
+	}
+
+	@Test
+	void parseTabularFile_shouldImportFromSelectedSheet() throws Exception {
+		byte[] xlsxBytes = createMultiSheetRegistrationXlsx();
+		Map<String, String> resolvedHeaders = new LinkedHashMap<>();
+
+		List<CSVRecord> records = Helper.parseTabularFileFromValidHeaderWithResolvedHeaders(
+				"registrations.xlsx",
+				xlsxBytes,
+				Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"),
+				null,
+				resolvedHeaders,
+				"Sheet B"
+		);
+
+		assertEquals(1, records.size());
+		assertEquals("SV_B", Helper.getValue(records.get(0), resolvedHeaders, "MSSV"));
+	}
+
 	private static byte[] createXlsxWithMultipleHiddenDataRows() throws Exception {
 		try (Workbook workbook = new XSSFWorkbook();
 		     ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
@@ -145,6 +172,44 @@ class HelperTest {
 			hiddenByFlagRow.createCell(3).setCellValue("Hóa");
 			hiddenByFlagRow.createCell(4).setCellValue("GV C");
 			hiddenByFlagRow.getCTRow().setHidden(true);
+
+			workbook.write(outputStream);
+			return outputStream.toByteArray();
+		}
+	}
+
+	private static byte[] createMultiSheetRegistrationXlsx() throws Exception {
+		try (Workbook workbook = new XSSFWorkbook();
+		     ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+			Sheet sheetA = workbook.createSheet("Sheet A");
+			Row headerA = sheetA.createRow(0);
+			headerA.createCell(0).setCellValue("MSSV");
+			headerA.createCell(1).setCellValue("Họ tên");
+			headerA.createCell(2).setCellValue("Mã lớp học");
+			headerA.createCell(3).setCellValue("Môn học");
+			headerA.createCell(4).setCellValue("Giáo viên");
+
+			Row rowA = sheetA.createRow(1);
+			rowA.createCell(0).setCellValue("SV_A");
+			rowA.createCell(1).setCellValue("Student A");
+			rowA.createCell(2).setCellValue("LHP_A");
+			rowA.createCell(3).setCellValue("Math");
+			rowA.createCell(4).setCellValue("Teacher A");
+
+			Sheet sheetB = workbook.createSheet("Sheet B");
+			Row headerB = sheetB.createRow(0);
+			headerB.createCell(0).setCellValue("MSSV");
+			headerB.createCell(1).setCellValue("Họ tên");
+			headerB.createCell(2).setCellValue("Mã lớp học");
+			headerB.createCell(3).setCellValue("Môn học");
+			headerB.createCell(4).setCellValue("Giáo viên");
+
+			Row rowB = sheetB.createRow(1);
+			rowB.createCell(0).setCellValue("SV_B");
+			rowB.createCell(1).setCellValue("Student B");
+			rowB.createCell(2).setCellValue("LHP_B");
+			rowB.createCell(3).setCellValue("Physics");
+			rowB.createCell(4).setCellValue("Teacher B");
 
 			workbook.write(outputStream);
 			return outputStream.toByteArray();

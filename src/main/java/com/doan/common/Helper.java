@@ -407,8 +407,24 @@ public class Helper {
 	                                                                                  Set<String> requiredHeaders,
 	                                                                                  Map<String, String> requestedHeaderMapping,
 	                                                                                  Map<String, String> resolvedHeadersOut) throws IOException {
+		return parseTabularFileFromValidHeaderWithResolvedHeaders(
+				fileName,
+				fileBytes,
+				requiredHeaders,
+				requestedHeaderMapping,
+				resolvedHeadersOut,
+				null
+		);
+	}
+
+	public static List<CSVRecord> parseTabularFileFromValidHeaderWithResolvedHeaders(String fileName,
+	                                                                                  byte[] fileBytes,
+	                                                                                  Set<String> requiredHeaders,
+	                                                                                  Map<String, String> requestedHeaderMapping,
+	                                                                                  Map<String, String> resolvedHeadersOut,
+	                                                                                  String sheetName) throws IOException {
 		byte[] normalizedFileBytes = isXlsxFile(fileName)
-				? convertXlsxToCsvBytes(fileBytes, requiredHeaders, requestedHeaderMapping)
+				? convertXlsxToCsvBytes(fileBytes, requiredHeaders, requestedHeaderMapping, sheetName)
 				: fileBytes;
 		return parseCSVFromValidHeaderWithResolvedHeaders(
 				normalizedFileBytes,
@@ -419,10 +435,24 @@ public class Helper {
 	}
 
 	public static List<String> detectHeadersFromFile(String fileName, byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
+		return detectHeadersFromFile(fileName, fileBytes, expectedHeaders, null);
+	}
+
+	public static List<String> detectHeadersFromFile(String fileName,
+	                                                 byte[] fileBytes,
+	                                                 Set<String> expectedHeaders,
+	                                                 String sheetName) throws IOException {
 		if (isXlsxFile(fileName)) {
-			return detectXlsxHeaders(fileBytes, expectedHeaders);
+			return detectXlsxHeaders(fileBytes, expectedHeaders, sheetName);
 		}
 		return detectHeaders(fileBytes, expectedHeaders);
+	}
+
+	public static List<String> listSheetNamesFromFile(String fileName, byte[] fileBytes) throws IOException {
+		if (!isXlsxFile(fileName)) {
+			return Collections.emptyList();
+		}
+		return listXlsxSheetNames(fileBytes);
 	}
 
 	private static boolean isXlsxFile(String fileName) {
@@ -430,8 +460,10 @@ public class Helper {
 		return fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx");
 	}
 
-	private static List<String> detectXlsxHeaders(byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
-		List<XlsxRowData> rows = readXlsxRows(fileBytes);
+	private static List<String> detectXlsxHeaders(byte[] fileBytes,
+	                                              Set<String> expectedHeaders,
+	                                              String sheetName) throws IOException {
+		List<XlsxRowData> rows = readXlsxRows(fileBytes, sheetName);
 		List<String> bestHeaders = null;
 		int bestExpectedMatch = -1;
 		int bestHeaderSize = -1;
@@ -463,8 +495,9 @@ public class Helper {
 
 	private static byte[] convertXlsxToCsvBytes(byte[] fileBytes,
 	                                            Set<String> requiredHeaders,
-	                                            Map<String, String> requestedHeaderMapping) throws IOException {
-		List<XlsxRowData> rows = readXlsxRows(fileBytes);
+	                                            Map<String, String> requestedHeaderMapping,
+	                                            String sheetName) throws IOException {
+		List<XlsxRowData> rows = readXlsxRows(fileBytes, sheetName);
 		int headerRowIndex = findXlsxHeaderRowIndex(rows, requiredHeaders, requestedHeaderMapping);
 		XlsxRowData headerRow = null;
 		for (XlsxRowData row : rows) {
@@ -551,9 +584,9 @@ public class Helper {
 		throw new IllegalStateException("No valid XLSX header line found");
 	}
 
-	private static List<XlsxRowData> readXlsxRows(byte[] fileBytes) throws IOException {
+	private static List<XlsxRowData> readXlsxRows(byte[] fileBytes, String sheetName) throws IOException {
 		try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
-			Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
+			Sheet sheet = resolveSheet(workbook, sheetName);
 			if (sheet == null) {
 				throw new IllegalStateException("XLSX file does not contain sheets");
 			}
@@ -574,6 +607,30 @@ public class Helper {
 				rows.add(new XlsxRowData(rowIndex, hidden, values));
 			}
 			return rows;
+		}
+	}
+
+	private static Sheet resolveSheet(Workbook workbook, String sheetName) {
+		if (workbook == null || workbook.getNumberOfSheets() == 0) {
+			return null;
+		}
+		if (sheetName != null && !sheetName.isBlank()) {
+			Sheet selected = workbook.getSheet(sheetName);
+			if (selected == null) {
+				throw new IllegalStateException("XLSX sheet not found: " + sheetName);
+			}
+			return selected;
+		}
+		return workbook.getSheetAt(0);
+	}
+
+	private static List<String> listXlsxSheetNames(byte[] fileBytes) throws IOException {
+		try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
+			List<String> sheetNames = new ArrayList<>();
+			for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+				sheetNames.add(workbook.getSheetName(i));
+			}
+			return sheetNames;
 		}
 	}
 
