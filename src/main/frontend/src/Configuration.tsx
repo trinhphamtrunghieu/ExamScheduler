@@ -280,7 +280,7 @@ function Configuration() {
                       </select>
                     </div>
                     {pendingFile && availableSheets.length > 0 && (
-                      <div className="export-format-section">
+                      <div className="import-sheet-section">
                         <label htmlFor="config-import-sheet" className="export-format-label">Sheet name</label>
                         <select
                           id="config-import-sheet"
@@ -297,7 +297,7 @@ function Configuration() {
                       </div>
                     )}
                     {pendingFile && detectedHeaders.length > 0 && (
-                      <div className="confirm-header-section">
+                      <div className="confirm-header-section confirm-header-section-left">
                         {expectedHeaders.map((expected) => (
                           <div key={expected} className="confirm-header-row">
                             <label className="confirm-header-label">{expected}</label>

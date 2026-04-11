@@ -239,6 +239,14 @@ tr:hover {
   margin-bottom: 1.5rem;
 }
 
+.import-sheet-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .export-format-label {
   font-size: 0.95rem;
   color: #374151;
@@ -265,6 +273,11 @@ tr:hover {
   background-color: #ffffff;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
   font-family: 'Roboto', sans-serif;
+}
+
+.confirm-header-section-left {
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .confirm-header-row {
