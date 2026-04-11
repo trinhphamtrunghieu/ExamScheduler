@@ -518,6 +518,9 @@ public class Helper {
 			DataFormatter formatter = new DataFormatter();
 			for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
 				Row row = sheet.getRow(rowIndex);
+				if (row != null && row.getZeroHeight()) {
+					continue;
+				}
 				if (row == null || row.getLastCellNum() < 0) {
 					rows.add(new ArrayList<>());
 					continue;

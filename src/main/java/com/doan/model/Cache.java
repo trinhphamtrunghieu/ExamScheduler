@@ -209,7 +209,7 @@ public class Cache {
 		} else {
 			newCache = new Cache();
 		}
-		int totalLines = records.size();
+		int totalLines = 0;
 		int importedLines = 0;
 		for (int i = 0; i < records.size(); i++) {
 			CSVRecord record = records.get(i);
@@ -230,6 +230,14 @@ public class Cache {
 				teacher = Helper.getValue(record, resolvedHeaders, "Giáo viên");
 				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 			}
+			boolean hasAnyData = !(studentID == null || studentID.trim().isEmpty())
+					|| !(studentName == null || studentName.trim().isEmpty())
+					|| !(subjectID == null || subjectID.trim().isEmpty())
+					|| !(subjectName == null || subjectName.trim().isEmpty())
+					|| !(teacher == null || teacher.trim().isEmpty())
+					|| !(classID == null || classID.trim().isEmpty());
+			if (!hasAnyData) continue;
+			totalLines++;
 			if (subjectName.isEmpty()) continue;
 			importedLines++;
 			Student student = newCache.students.get(studentID);
