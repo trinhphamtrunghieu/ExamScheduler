@@ -230,15 +230,15 @@ public class Cache {
 				teacher = Helper.getValue(record, resolvedHeaders, "Giáo viên");
 				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 			}
-			boolean hasAnyData = !(studentID == null || studentID.trim().isEmpty())
-					|| !(studentName == null || studentName.trim().isEmpty())
-					|| !(subjectID == null || subjectID.trim().isEmpty())
-					|| !(subjectName == null || subjectName.trim().isEmpty())
-					|| !(teacher == null || teacher.trim().isEmpty())
-					|| !(classID == null || classID.trim().isEmpty());
-			if (!hasAnyData) continue;
+			boolean hasAnyNonEmptyField = isNonEmptyValue(studentID)
+					|| isNonEmptyValue(studentName)
+					|| isNonEmptyValue(subjectID)
+					|| isNonEmptyValue(subjectName)
+					|| isNonEmptyValue(teacher)
+					|| isNonEmptyValue(classID);
+			if (!hasAnyNonEmptyField) continue;
 			totalLines++;
-			if (subjectName.isEmpty()) continue;
+			if (!isNonEmptyValue(subjectName)) continue;
 			importedLines++;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {
@@ -266,5 +266,9 @@ public class Cache {
 				newCache.subjects.size(),
 				newCache.classes.size()
 		);
+	}
+
+	private static boolean isNonEmptyValue(String value) {
+		return value != null && !value.trim().isEmpty();
 	}
 }
