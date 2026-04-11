@@ -7,6 +7,7 @@ function Configuration() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
     const normalizeHeaderText = (value: string) => value.normalize("NFC").trim();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const exportFormatSelectRef = useRef<HTMLSelectElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false)
     const [message, setMessage] = useState("");
@@ -187,12 +188,12 @@ function Configuration() {
       }
     };
 
-    const handleExportClick = async () => {
+    const handleExportButtonClick = () => {
       if (!showExportFormat) {
         setShowExportFormat(true);
         return;
       }
-      await handleExportAllData();
+      void handleExportAllData();
     };
 
     const handleSaveConfig = async () => {
@@ -225,6 +226,18 @@ function Configuration() {
         setExportFormat(value as "csv" | "xlsx");
       }
     };
+
+    useEffect(() => {
+      if (showExportFormat) {
+        exportFormatSelectRef.current?.focus();
+      }
+    }, [showExportFormat]);
+
+    const exportButtonText = isProcessing
+      ? "Đang xuất..."
+      : showExportFormat
+        ? "Xác nhận xuất thông tin đăng ký"
+        : "Xuất thông tin đăng ký";
 
     return (
         <div id="root" className="flex">
@@ -259,12 +272,12 @@ function Configuration() {
                         {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
                         </button>
                         <button
-                        onClick={handleExportClick}
+                        onClick={handleExportButtonClick}
                         disabled={isProcessing}
                         className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
                         >
                         <Download className="w-5 h-5 mr-2" />
-                        {isProcessing ? "Exporting..." : showExportFormat ? "Xác nhận xuất thông tin đăng ký" : "Xuất thông tin đăng ký"}
+                        {exportButtonText}
                         </button>
                         <button
                             onClick={handleSaveConfig}
@@ -286,6 +299,7 @@ function Configuration() {
                           onChange={(e) => handleExportFormatChange(e.target.value)}
                           disabled={isProcessing}
                           className="export-format-select"
+                          ref={exportFormatSelectRef}
                         >
                           <option value="csv">CSV</option>
                           <option value="xlsx">XLSX</option>
