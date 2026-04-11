@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Download } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Generate() {
   const [schedule, setSchedule] = useState([]);
@@ -21,6 +23,8 @@ function Generate() {
   const [maxGenerations, setMaxGenerations] = useState(500);
   const [validationError, setValidationError] = useState("");
   const [maxExamPerDay, setMaxExamPerDay] = useState(5);
+  const [showExportForm, setShowExportForm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
@@ -165,14 +169,15 @@ function Generate() {
     return 0;
   });
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
     if (schedule.length === 0) {
       alert("No schedule data to export!");
       return;
     }
 
+    setIsExporting(true);
     try {
-      const response = await fetch(`${API_BASE}/schedule/export`, {
+      const response = await fetch(`${API_BASE}/schedule/export?format=${format}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,17 +191,13 @@ function Generate() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `exam_schedule_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveBlob(blob, fileName, format);
+      setShowExportForm(false);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       alert('Failed to export schedule. Please try again.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -297,15 +298,24 @@ function Generate() {
                         <h2>Generated Schedule</h2>
                         {schedule.length > 0 && (
                         <button
-                        onClick={handleExportCSV}
+                        onClick={() => setShowExportForm(true)}
                         className="export-button"
-                        title="Export as CSV"
+                        title="Export"
                         >
                         <Download className="w-4 h-4 mr-2" />
-                        Export CSV
+                        Export
                         </button>
                         )}
                     </div>
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`exam_schedule_${new Date().toISOString().split('T')[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
+                      }}
+                    />
                 </div>
                 <table>
                   <thead>

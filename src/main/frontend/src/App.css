@@ -228,7 +228,104 @@ tr:hover {
   display: flex;
   align-items: center;
   gap: 1rem; /* equivalent to Tailwind's gap-x-4 */
-  margin-bottom: 1.5rem; /* equivalent to mb-6 */
+  margin-bottom: 0.75rem;
+}
+
+.export-format-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.import-sheet-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.export-format-label {
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.export-format-select {
+  min-width: 7rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #ffffff;
+  color: #111827;
+  font-family: 'Roboto', sans-serif;
+}
+
+.export-confirmation-section {
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+}
+
+.export-confirmation-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.export-confirmation-label {
+  width: 7rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.export-confirmation-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #fff;
+}
+
+.export-location-button {
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #2563eb;
+  color: #fff;
+}
+
+.export-location-label {
+  margin-bottom: 0.75rem;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.export-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.export-cancel-button,
+.export-submit-button {
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  color: #fff;
+}
+
+.export-cancel-button {
+  background: #6b7280;
+}
+
+.export-submit-button {
+  background: #16a34a;
 }
 
 .confirm-header-section {
@@ -242,6 +339,11 @@ tr:hover {
   background-color: #ffffff;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
   font-family: 'Roboto', sans-serif;
+}
+
+.confirm-header-section-left {
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .confirm-header-row {

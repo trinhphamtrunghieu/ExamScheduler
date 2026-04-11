@@ -1,7 +1,9 @@
-import { useRef, useState, ChangeEvent, useEffect } from "react";
+import { useRef, useState, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Upload, Download } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Configuration() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
@@ -9,11 +11,55 @@ function Configuration() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false)
+    const [isExporting, setIsExporting] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
+    const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+    const [selectedSheet, setSelectedSheet] = useState("");
+    const [showExportForm, setShowExportForm] = useState(false);
+
+    const detectImportHeaders = async (file: File, sheetName?: string) => {
+      const headersFormData = new FormData();
+      headersFormData.append("file", file);
+      if (sheetName) {
+        headersFormData.append("sheetName", sheetName);
+      }
+
+      const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
+        method: "POST",
+        credentials: "include",
+        body: headersFormData,
+      });
+      const headerData = await headersResponse.json();
+      if (!headersResponse.ok) {
+        throw new Error(headerData.error || "Cannot detect headers");
+      }
+
+      const incomingHeaders = (headerData.headers || []) as string[];
+      const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
+      setDetectedHeaders(normalizedIncomingHeaders);
+
+      const incomingSheets = (headerData.sheetNames || []) as string[];
+      setAvailableSheets(incomingSheets);
+      if (incomingSheets.length === 0) {
+        setSelectedSheet("");
+      } else if (sheetName && incomingSheets.includes(sheetName)) {
+        setSelectedSheet(sheetName);
+      } else if (!incomingSheets.includes(selectedSheet)) {
+        setSelectedSheet(incomingSheets[0]);
+      }
+
+      const defaultMapping: Record<string, string> = {};
+      expectedHeaders.forEach((expected) => {
+        const expectedNormalized = normalizeHeaderText(expected);
+        const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
+        defaultMapping[expected] = exact || "";
+      });
+      setHeaderMapping(defaultMapping);
+    };
 
     const handleImportAllData = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -21,35 +67,32 @@ function Configuration() {
         setPendingFile(file);
         setMessage("");
         setError("");
-        const headersFormData = new FormData();
-        headersFormData.append("file", file);
+        setDetectedHeaders([]);
+        setHeaderMapping({});
+        setAvailableSheets([]);
+        setSelectedSheet("");
+        setShowExportForm(false);
         try {
-          const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
-            method: "POST",
-            credentials: "include",
-            body: headersFormData,
-          });
-          const headerData = await headersResponse.json();
-          if (!headersResponse.ok) {
-            setError(headerData.error || "Cannot detect CSV headers");
-            return;
-          }
-          const incomingHeaders = (headerData.headers || []) as string[];
-          const normalizedIncomingHeaders = incomingHeaders.map((h) => normalizeHeaderText(h));
-          setDetectedHeaders(normalizedIncomingHeaders);
-          const defaultMapping: Record<string, string> = {};
-          expectedHeaders.forEach((expected) => {
-            const expectedNormalized = normalizeHeaderText(expected);
-            const exact = normalizedIncomingHeaders.find((h) => h === expectedNormalized);
-            defaultMapping[expected] = exact || "";
-          });
-          setHeaderMapping(defaultMapping);
+          await detectImportHeaders(file);
         } catch (err) {
           console.error("Header detection error:", err);
-          setError("Cannot detect CSV headers");
+          setError("Cannot detect headers");
         } finally {
           if (fileInputRef.current) fileInputRef.current.value = "";
         }
+    };
+
+    const handleSheetChange = async (sheetName: string) => {
+      if (!pendingFile) return;
+      setSelectedSheet(sheetName);
+      setError("");
+      setMessage("");
+      try {
+        await detectImportHeaders(pendingFile, sheetName);
+      } catch (err) {
+        console.error("Header detection error:", err);
+        setError("Cannot detect headers");
+      }
     };
 
     const handleConfirmImportAllData = async () => {
@@ -65,6 +108,9 @@ function Configuration() {
           .map(([expected, actual]) => `${expected}=${actual}`)
           .join(";");
         formData.append("headerMapping", serializedMapping);
+        if (selectedSheet) {
+          formData.append("sheetName", selectedSheet);
+        }
 
         try {
             const response = await fetch(`${API_BASE}/config/import`, {
@@ -87,17 +133,19 @@ function Configuration() {
             setPendingFile(null);
             setDetectedHeaders([]);
             setHeaderMapping({});
+            setAvailableSheets([]);
+            setSelectedSheet("");
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
 
-    const handleExportAllData = async () => {
-      setIsProcessing(true);
+    const handleExportAllData = async (format: "csv" | "xlsx", fileName: string) => {
+      setIsExporting(true);
       setMessage("");
       setError("");
 
       try {
-        const response = await fetch(`${API_BASE}/config/export`, {
+        const response = await fetch(`${API_BASE}/config/export?format=${format}`, {
           method: "GET",
           credentials: "include",
         });
@@ -116,23 +164,14 @@ function Configuration() {
         }
 
         const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.setAttribute(
-          "download",
-          `all_data_backup_${new Date().toISOString().split("T")[0]}.csv`
-        );
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode?.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
+        await saveBlob(blob, fileName, format);
         setMessage("Data exported successfully.");
+        setShowExportForm(false);
       } catch (err) {
         console.error("Export error:", err);
         setError("Network error. Please try again.");
       } finally {
-        setIsProcessing(false);
+        setIsExporting(false);
       }
     };
 
@@ -180,7 +219,7 @@ function Configuration() {
                         type="file"
                         ref={fileInputRef}
                         onChange={handleImportAllData}
-                        accept=".csv"
+                        accept=".csv,.xlsx"
                         className="hidden"
                         disabled={isProcessing}
                         />
@@ -194,12 +233,12 @@ function Configuration() {
                         {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
                         </button>
                         <button
-                        onClick={handleExportAllData}
-                        disabled={isProcessing}
+                        onClick={() => setShowExportForm(true)}
+                        disabled={isProcessing || isExporting}
                         className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
                         >
                         <Download className="w-5 h-5 mr-2" />
-                        {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
+                        {isExporting ? "Đang xuất..." : "Xuất thông tin đăng ký"}
                         </button>
                         <button
                             onClick={handleSaveConfig}
@@ -211,8 +250,34 @@ function Configuration() {
                         </span>
                         </button>
                     </div>
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`all_data_backup_${new Date().toISOString().split("T")[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportAllData(format, fileName);
+                      }}
+                    />
+                    {pendingFile && availableSheets.length > 0 && (
+                      <div className="import-sheet-section">
+                        <label htmlFor="config-import-sheet" className="export-format-label">Sheet name</label>
+                        <select
+                          id="config-import-sheet"
+                          aria-label="Import sheet name"
+                          value={selectedSheet}
+                          onChange={(e) => handleSheetChange(e.target.value)}
+                          disabled={isProcessing}
+                          className="export-format-select"
+                        >
+                          {availableSheets.map((sheetName) => (
+                            <option key={sheetName} value={sheetName}>{sheetName}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     {pendingFile && detectedHeaders.length > 0 && (
-                      <div className="confirm-header-section">
+                      <div className="confirm-header-section confirm-header-section-left">
                         {expectedHeaders.map((expected) => (
                           <div key={expected} className="confirm-header-row">
                             <label className="confirm-header-label">{expected}</label>

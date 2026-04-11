@@ -6,6 +6,10 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +19,22 @@ import java.util.Map;
 import java.util.Set;
 
 public class Cache {
+	public static class ImportSummary {
+		public final int totalLines;
+		public final int importedLines;
+		public final int studentCount;
+		public final int subjectCount;
+		public final int classCount;
+
+		public ImportSummary(int totalLines, int importedLines, int studentCount, int subjectCount, int classCount) {
+			this.totalLines = totalLines;
+			this.importedLines = importedLines;
+			this.studentCount = studentCount;
+			this.subjectCount = subjectCount;
+			this.classCount = classCount;
+		}
+	}
+
 	public volatile Map<String, Student> students = new HashMap<>();
 	public volatile Map<String, Subject> subjects = new HashMap<>();
 	public volatile Map<String, InClass> classes = new HashMap<>();
@@ -145,11 +165,43 @@ public class Cache {
 		return csvBytes;
 	}
 
-	public void importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
-		importAll(records, isAppend, null);
+	public byte[] exportAllXlsx() throws IOException {
+		try (Workbook workbook = new XSSFWorkbook();
+		     ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+			Sheet sheet = workbook.createSheet("Registrations");
+			String[] header = {"STT", "MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên", "LỚP", "NGÀY THI"};
+
+			Row headerRow = sheet.createRow(0);
+			for (int col = 0; col < header.length; col++) {
+				headerRow.createCell(col).setCellValue(header[col]);
+			}
+
+			int rowIndex = 1;
+			int counter = 1;
+			for (Student student : students.values()) {
+				for (Subject subject : student.participateIn) {
+					Row row = sheet.createRow(rowIndex++);
+					row.createCell(0).setCellValue(counter++);
+					row.createCell(1).setCellValue(student.id);
+					row.createCell(2).setCellValue(student.name);
+					row.createCell(3).setCellValue(subject.id);
+					row.createCell(4).setCellValue(subject.name);
+					row.createCell(5).setCellValue(subject.teacher);
+					row.createCell(6).setCellValue(student.inClass.id);
+					row.createCell(7).setCellValue("");
+				}
+			}
+
+			workbook.write(outputStream);
+			return outputStream.toByteArray();
+		}
 	}
 
-	public void importAll(List<CSVRecord> records, boolean isAppend, Map<String, String> resolvedHeaders) throws IOException {
+	public ImportSummary importAll(List<CSVRecord> records, boolean isAppend) throws IOException {
+		return importAll(records, isAppend, null);
+	}
+
+	public ImportSummary importAll(List<CSVRecord> records, boolean isAppend, Map<String, String> resolvedHeaders) throws IOException {
 
 		Cache newCache;
 		if (isAppend) {
@@ -157,6 +209,8 @@ public class Cache {
 		} else {
 			newCache = new Cache();
 		}
+		int totalLines = 0;
+		int importedLines = 0;
 		for (int i = 0; i < records.size(); i++) {
 			CSVRecord record = records.get(i);
 			//STT, MSSV, Họ tên, Mã lớp học, Môn học, Giáo viên, Lớp
@@ -176,7 +230,16 @@ public class Cache {
 				teacher = Helper.getValue(record, resolvedHeaders, "Giáo viên");
 				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 			}
-			if (subjectName.isEmpty()) continue;
+			boolean hasAnyNonEmptyField = isNonEmptyValue(studentID)
+					|| isNonEmptyValue(studentName)
+					|| isNonEmptyValue(subjectID)
+					|| isNonEmptyValue(subjectName)
+					|| isNonEmptyValue(teacher)
+					|| isNonEmptyValue(classID);
+			if (!hasAnyNonEmptyField) continue;
+			totalLines++;
+			if (!isNonEmptyValue(subjectName)) continue;
+			importedLines++;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {
 				student = new Student(studentID, studentName);
@@ -196,5 +259,16 @@ public class Cache {
 			student.registerSubject(subject);
 		}
 		cache = newCache;
+		return new ImportSummary(
+				totalLines,
+				importedLines,
+				newCache.students.size(),
+				newCache.subjects.size(),
+				newCache.classes.size()
+		);
+	}
+
+	private static boolean isNonEmptyValue(String value) {
+		return value != null && !value.trim().isEmpty();
 	}
 }

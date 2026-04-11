@@ -4,7 +4,6 @@ import com.doan.common.Helper;
 import com.doan.dto.Sinh_Vien;
 import com.doan.model.Cache;
 import com.doan.model.Student;
-import com.opencsv.CSVWriter;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -12,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.StringWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,43 +43,39 @@ public class Sinh_Vien_Controller {
 
 	@PostMapping("/export")
 	public ResponseEntity<byte[]> exportStudents(@RequestBody List<Map<String, Object>> students,
-	                                             @RequestParam(defaultValue = "UTF-8") String encoding // default to UTF-8
+	                                             @RequestParam(value = "format", required = false, defaultValue = "csv") String format
 	) {
 		try {
-			StringWriter stringWriter = new StringWriter();
-			CSVWriter csvWriter = new CSVWriter(stringWriter);
-
-			// Write header
-			String[] header = {"MSSV", "Họ tên"};
-			csvWriter.writeNext(header);
-
-			// Write data rows
+			List<String[]> rows = new ArrayList<>();
 			for (Map<String, Object> student : students) {
-				String[] row = {
+				rows.add(new String[] {
 						String.valueOf(student.get("id")),
 						String.valueOf(student.get("name"))
-				};
-				csvWriter.writeNext(row);
+				});
 			}
-
-			csvWriter.close();
-			byte[] csvBytes = stringWriter.toString().getBytes("UTF-8");
-			byte[] bom = new byte[] {(byte)0xEF, (byte)0xBB, (byte)0xBF};
-			byte[] csvWithBom = new byte[bom.length + csvBytes.length];
-			System.arraycopy(bom, 0, csvWithBom, 0, bom.length);
-			System.arraycopy(csvBytes, 0, csvWithBom, bom.length, csvBytes.length);
+			boolean exportAsXlsx = "xlsx".equalsIgnoreCase(format);
+			byte[] exportedBytes = exportAsXlsx
+					? Common.exportXlsx("Students", new String[] {"MSSV", "Họ tên"}, rows)
+					: Common.exportCsv(new String[] {"MSSV", "Họ tên"}, rows);
+			String fileExtension = exportAsXlsx ? "xlsx" : "csv";
+			String contentType = exportAsXlsx
+					? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+					: "text/csv; charset=UTF-8";
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentType(MediaType.parseMediaType(contentType));
 			headers.setContentDispositionFormData("attachment",
-					"students_" + java.time.LocalDate.now() + ".csv");
+					"students_" + java.time.LocalDate.now() + "." + fileExtension);
 			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
 			return ResponseEntity.ok()
-					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-					.contentLength(csvBytes.length)
-					.body(csvBytes);
+					.headers(headers)
+					.contentType(MediaType.parseMediaType(contentType))
+					.contentLength(exportedBytes.length)
+					.body(exportedBytes);
 
+		} catch (IOException e) {
+			return ResponseEntity.internalServerError().build();
 		} catch (Exception e) {
 			return ResponseEntity.internalServerError().build();
 		}

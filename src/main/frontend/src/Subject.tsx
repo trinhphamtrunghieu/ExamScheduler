@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Download, Upload } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Subjects() {
     const expectedHeaders = ["Mã lớp học", "TÊN MÔN HỌC", "GIẢNG VIÊN", "Ngày bắt đầu", "Ngày kết thúc"];
@@ -18,6 +20,8 @@ function Subjects() {
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
+    const [showExportForm, setShowExportForm] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
   // Fetch subjects on mount
   useEffect(() => {
@@ -105,14 +109,15 @@ function Subjects() {
       setFilterValue(value);
     }
   };
-  const handleExportCSV = async () => {
+  const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
     if (subjects.length === 0) {
       alert("No schedule data to export!");
       return;
     }
 
+    setIsExporting(true);
     try {
-      const response = await fetch(`${API_BASE}/subjects/export`, {
+      const response = await fetch(`${API_BASE}/subjects/export?format=${format}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,17 +131,13 @@ function Subjects() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `subjects_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveBlob(blob, fileName, format);
+      setShowExportForm(false);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       alert('Failed to export schedule. Please try again.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -245,14 +246,23 @@ function Subjects() {
                             {isImporting ? "Importing..." : "Import CSV"}
                         </button>
                         <button
-                            onClick={handleExportCSV}
-                            title="Export as CSV"
+                            onClick={() => setShowExportForm(true)}
+                            title="Export"
                             disabled={disabledDownload}
                             className="import-export-button"
                         >
-                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                            <Download className="w-4 h-4 mr-2" /> Export
                         </button>
                     </div>
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`subjects_${new Date().toISOString().split('T')[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
+                      }}
+                    />
                     {importMessage && (
                     <div className="mt-2 text-green-600">{importMessage}</div>
                     )}

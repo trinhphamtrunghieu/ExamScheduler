@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Download, Upload } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Registrations() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
@@ -15,8 +17,12 @@ function Registrations() {
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
+    const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+    const [selectedSheet, setSelectedSheet] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
+    const [showExportForm, setShowExportForm] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Fetch registrations on mount
     useEffect(() => {
@@ -78,73 +84,98 @@ function Registrations() {
     setFilterValue(e.target.value);
   };
 
-    const handleExportCSV = async () => {
+    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string) => {
         if (registrations.length === 0) {
             alert("No registration data to export!");
             return;
         }
 
+        setIsExporting(true);
         try {
             const response = await fetch(
-                `${API_BASE}/registrations/export`, {
+                `${API_BASE}/registrations/export?format=${format}`, {
                     method: 'POST',
-                    headers: {
-                    'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify(registrations)
+                    credentials: 'include'
                 });
             if (!response.ok) {
                 throw new Error('Export failed');
             }
 
             const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', `registration_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-            window.URL.revokeObjectURL(downloadUrl);
+            await saveBlob(blob, fileName, format);
+            setShowExportForm(false);
         } catch (error) {
             console.error('Error exporting CSV:', error);
             alert('Failed to export schedule. Please try again.');
+        } finally {
+            setIsExporting(false);
         }
     };
+    const detectImportHeaders = async (file: File, sheetName?: string) => {
+        const headersFormData = new FormData();
+        headersFormData.append("file", file);
+        if (sheetName) {
+          headersFormData.append("sheetName", sheetName);
+        }
+        const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
+          method: "POST",
+          credentials: "include",
+          body: headersFormData,
+        });
+        const headerData = await headersResponse.json();
+        if (!headersResponse.ok) {
+          throw new Error(headerData.error || "Cannot detect headers");
+        }
+        const incomingHeaders = headerData.headers || [];
+        setDetectedHeaders(incomingHeaders);
+        const incomingSheets = (headerData.sheetNames || []) as string[];
+        setAvailableSheets(incomingSheets);
+        if (incomingSheets.length === 0) {
+          setSelectedSheet("");
+        } else if (sheetName && incomingSheets.includes(sheetName)) {
+          setSelectedSheet(sheetName);
+        } else if (!incomingSheets.includes(selectedSheet)) {
+          setSelectedSheet(incomingSheets[0]);
+        }
+        const defaultMapping: Record<string, string> = {};
+        expectedHeaders.forEach((expected) => {
+          const exact = incomingHeaders.find((h: string) => h === expected);
+          defaultMapping[expected] = exact || "";
+        });
+        setHeaderMapping(defaultMapping);
+    };
+
     const handleImportCSV = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         setPendingFile(file);
         setImportMessage("");
         setImportError("");
-        const headersFormData = new FormData();
-        headersFormData.append("file", file);
+        setDetectedHeaders([]);
+        setHeaderMapping({});
+        setAvailableSheets([]);
+        setSelectedSheet("");
         try {
-          const headersResponse = await fetch(`${API_BASE}/config/import/headers`, {
-            method: "POST",
-            credentials: "include",
-            body: headersFormData,
-          });
-          const headerData = await headersResponse.json();
-          if (!headersResponse.ok) {
-            setImportError(headerData.error || "Cannot detect CSV headers");
-            return;
-          }
-          const incomingHeaders = headerData.headers || [];
-          setDetectedHeaders(incomingHeaders);
-          const defaultMapping: Record<string, string> = {};
-          expectedHeaders.forEach((expected) => {
-            const exact = incomingHeaders.find((h: string) => h === expected);
-            defaultMapping[expected] = exact || "";
-          });
-          setHeaderMapping(defaultMapping);
+          await detectImportHeaders(file);
         } catch (error) {
-          setImportError("Cannot detect CSV headers");
+          setImportError("Cannot detect headers");
           console.error("Header detection error:", error);
         } finally {
           if (fileInputRef.current) fileInputRef.current.value = "";
         }
+    };
+
+    const handleSheetChange = async (sheetName: string) => {
+      if (!pendingFile) return;
+      setSelectedSheet(sheetName);
+      setImportMessage("");
+      setImportError("");
+      try {
+        await detectImportHeaders(pendingFile, sheetName);
+      } catch (error) {
+        setImportError("Cannot detect headers");
+        console.error("Header detection error:", error);
+      }
     };
 
     const handleConfirmImport = async () => {
@@ -159,6 +190,9 @@ function Registrations() {
           .map(([expected, actual]) => `${expected}=${actual}`)
           .join(";");
         formData.append("headerMapping", serializedMapping);
+        if (selectedSheet) {
+          formData.append("sheetName", selectedSheet);
+        }
 
         try {
             const response = await fetch(`${API_BASE}/config/import`, {
@@ -182,6 +216,8 @@ function Registrations() {
         setPendingFile(null);
         setDetectedHeaders([]);
         setHeaderMapping({});
+        setAvailableSheets([]);
+        setSelectedSheet("");
         // Reset file input
         if (fileInputRef.current) fileInputRef.current.value = "";
         }
@@ -204,7 +240,7 @@ function Registrations() {
                             type="file"
                             ref={fileInputRef}
                             onChange={handleImportCSV}
-                            accept=".csv"
+                            accept=".csv,.xlsx"
                             className="hidden"
                             disabled={isImporting}
                         />
@@ -214,22 +250,46 @@ function Registrations() {
                             className="import-export-button"
                         >
                             <Upload className="w-4 h-4 mr-2" />
-                            {isImporting ? "Importing..." : "Import CSV"}
+                            {isImporting ? "Importing..." : "Import file"}
                         </button>
                         <button
-                            onClick={handleExportCSV}
-                            title="Export as CSV"
+                            onClick={() => setShowExportForm(true)}
+                            title="Export"
                             disabled={disabledDownload}
                             className="import-export-button"
                         >
-                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                            <Download className="w-4 h-4 mr-2" /> Export
                         </button>
                     </div>
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`registration_${new Date().toISOString().split('T')[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName }) => {
+                        void handleExportCSV(format, fileName);
+                      }}
+                    />
                     {importMessage && (
                     <div className="mt-2 text-green-600">{importMessage}</div>
                     )}
                     {importError && (
                     <div className="mt-2 text-red-500">{importError}</div>
+                    )}
+                    {pendingFile && availableSheets.length > 0 && (
+                      <div className="mt-3 flex items-center">
+                        <label className="mr-2 text-sm w-28">Sheet name</label>
+                        <select
+                          className="p-1 border border-gray-300 rounded-lg"
+                          value={selectedSheet}
+                          onChange={(e) => handleSheetChange(e.target.value)}
+                          disabled={isImporting}
+                        >
+                          {availableSheets.map((sheetName) => (
+                            <option key={sheetName} value={sheetName}>{sheetName}</option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                     {pendingFile && detectedHeaders.length > 0 && (
                       <div className="mt-3">
