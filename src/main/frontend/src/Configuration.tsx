@@ -15,6 +15,7 @@ function Configuration() {
     const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
     const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
+    const exportFormatOptions = new Set(["csv", "xlsx"]);
 
     const handleImportAllData = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -165,6 +166,12 @@ function Configuration() {
         }
     };
 
+    const handleExportFormatChange = (value: string) => {
+      if (exportFormatOptions.has(value)) {
+        setExportFormat(value as "csv" | "xlsx");
+      }
+    };
+
     return (
         <div id="root" className="flex">
             <NavBar /> {/* NavBar */}
@@ -205,15 +212,20 @@ function Configuration() {
                         <Download className="w-5 h-5 mr-2" />
                         {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
                         </button>
-                        <select
-                          value={exportFormat}
-                          onChange={(e) => setExportFormat(e.target.value as "csv" | "xlsx")}
-                          disabled={isProcessing}
-                          className="p-3 rounded-lg border border-gray-300 w-full"
-                        >
-                          <option value="csv">CSV</option>
-                          <option value="xlsx">XLSX</option>
-                        </select>
+                        <div className="w-full">
+                          <label htmlFor="config-export-format" className="block text-sm text-gray-700 mb-1">Định dạng xuất</label>
+                          <select
+                            id="config-export-format"
+                            aria-label="Export format"
+                            value={exportFormat}
+                            onChange={(e) => handleExportFormatChange(e.target.value)}
+                            disabled={isProcessing}
+                            className="p-3 rounded-lg border border-gray-300 w-full"
+                          >
+                            <option value="csv">CSV</option>
+                            <option value="xlsx">XLSX</option>
+                          </select>
+                        </div>
                         <button
                             onClick={handleSaveConfig}
                             disabled={isSaving}
