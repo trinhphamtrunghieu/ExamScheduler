@@ -4,7 +4,6 @@ import com.doan.dto.Lich_Thi_Option;
 import com.doan.model.Schedule;
 import com.doan.services.ExamSchedulerService;
 import com.doan.services.ExamSchedulerService2;
-import com.opencsv.CSVWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -12,8 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.*;
 
 @RestController
@@ -86,42 +85,47 @@ public class Lich_Thi_Controller {
 
 
 	@PostMapping("/export")
-	public ResponseEntity<byte[]> exportSchedule(@RequestBody List<Map<String, Object>> schedule) {
+	public ResponseEntity<byte[]> exportSchedule(@RequestBody List<Map<String, Object>> schedule,
+	                                             @RequestParam(value = "format", required = false, defaultValue = "csv") String format) {
 		try {
-			StringWriter stringWriter = new StringWriter();
-			CSVWriter csvWriter = new CSVWriter(stringWriter);
-
-			// Write header
-			String[] header = {"Mã Môn Học", "Tên Môn Học", "Ngày Thi", "Giờ Bắt Đầu Thi",
-					"Giờ Kết Thúc Thi", "Thời Lượng Thi"};
-			csvWriter.writeNext(header);
-
-			// Write data rows
+			List<String[]> rows = new ArrayList<>();
 			for (Map<String, Object> exam : schedule) {
-				System.out.println(exam.get("subject"));
-				String[] row = {
+				rows.add(new String[] {
 						String.valueOf(exam.get("id")),
 						String.valueOf(exam.get("subjectName")),
 						String.valueOf(exam.get("date")),
 						String.valueOf(exam.get("time")),
 						String.valueOf(exam.get("endTime")),
-				};
-				csvWriter.writeNext(row);
+				});
 			}
 
-			csvWriter.close();
-			byte[] csvBytes = stringWriter.toString().getBytes(StandardCharsets.UTF_8);
+			boolean exportAsXlsx = "xlsx".equalsIgnoreCase(format);
+			byte[] exportedBytes = exportAsXlsx
+					? Common.exportXlsx(
+					"Schedule",
+					new String[] {"Mã Môn Học", "Tên Môn Học", "Ngày Thi", "Giờ Bắt Đầu Thi", "Giờ Kết Thúc Thi"},
+					rows
+			)
+					: Common.exportCsv(
+					new String[] {"Mã Môn Học", "Tên Môn Học", "Ngày Thi", "Giờ Bắt Đầu Thi", "Giờ Kết Thúc Thi"},
+					rows
+			);
+			String fileExtension = exportAsXlsx ? "xlsx" : "csv";
+			String contentType = exportAsXlsx
+					? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+					: "text/csv; charset=UTF-8";
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentType(MediaType.parseMediaType(contentType));
 			headers.setContentDispositionFormData("attachment",
-					"exam_schedule_" + java.time.LocalDate.now() + ".csv");
+					"exam_schedule_" + java.time.LocalDate.now() + "." + fileExtension);
 			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
 			return ResponseEntity.ok()
-					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-					.contentLength(csvBytes.length)
-					.body(csvBytes);
+					.headers(headers)
+					.contentType(MediaType.parseMediaType(contentType))
+					.contentLength(exportedBytes.length)
+					.body(exportedBytes);
 
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Download, Upload } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Registrations() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
@@ -19,6 +21,8 @@ function Registrations() {
     const [selectedSheet, setSelectedSheet] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [disabledDownload, setDisabledDownload] = useState(false);
+    const [showExportForm, setShowExportForm] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Fetch registrations on mount
     useEffect(() => {
@@ -80,38 +84,31 @@ function Registrations() {
     setFilterValue(e.target.value);
   };
 
-    const handleExportCSV = async () => {
+    const handleExportCSV = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
         if (registrations.length === 0) {
             alert("No registration data to export!");
             return;
         }
 
+        setIsExporting(true);
         try {
             const response = await fetch(
-                `${API_BASE}/registrations/export`, {
+                `${API_BASE}/registrations/export?format=${format}`, {
                     method: 'POST',
-                    headers: {
-                    'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify(registrations)
+                    credentials: 'include'
                 });
             if (!response.ok) {
                 throw new Error('Export failed');
             }
 
             const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', `registration_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-            window.URL.revokeObjectURL(downloadUrl);
+            await saveBlob(blob, fileName, format, saveHandle);
+            setShowExportForm(false);
         } catch (error) {
             console.error('Error exporting CSV:', error);
             alert('Failed to export schedule. Please try again.');
+        } finally {
+            setIsExporting(false);
         }
     };
     const detectImportHeaders = async (file: File, sheetName?: string) => {
@@ -256,14 +253,23 @@ function Registrations() {
                             {isImporting ? "Importing..." : "Import file"}
                         </button>
                         <button
-                            onClick={handleExportCSV}
-                            title="Export as CSV"
+                            onClick={() => setShowExportForm(true)}
+                            title="Export"
                             disabled={disabledDownload}
                             className="import-export-button"
                         >
-                            <Download className="w-4 h-4 mr-2" /> Export CSV
+                            <Download className="w-4 h-4 mr-2" /> Export
                         </button>
                     </div>
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`registration_${new Date().toISOString().split('T')[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName, saveHandle }) => {
+                        void handleExportCSV(format, fileName, saveHandle);
+                      }}
+                    />
                     {importMessage && (
                     <div className="mt-2 text-green-600">{importMessage}</div>
                     )}

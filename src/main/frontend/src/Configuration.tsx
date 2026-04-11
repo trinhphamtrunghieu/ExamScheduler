@@ -1,15 +1,17 @@
-import { useRef, useState, ChangeEvent, useEffect } from "react";
+import { useRef, useState, ChangeEvent } from "react";
 import { API_BASE } from "./common.tsx";
 import NavBar from "./NavBar.tsx";
 import { Upload, Download } from "lucide-react";
+import ExportConfirmationForm from "./ExportConfirmationForm.tsx";
+import { saveBlob } from "./exportUtils.ts";
 
 function Configuration() {
     const expectedHeaders = ["MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên"];
     const normalizeHeaderText = (value: string) => value.normalize("NFC").trim();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const exportFormatSelectRef = useRef<HTMLSelectElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false)
+    const [isExporting, setIsExporting] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -17,9 +19,7 @@ function Configuration() {
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
     const [availableSheets, setAvailableSheets] = useState<string[]>([]);
     const [selectedSheet, setSelectedSheet] = useState("");
-    const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
-    const [showExportFormat, setShowExportFormat] = useState(false);
-    const exportFormatOptions = new Set(["csv", "xlsx"]);
+    const [showExportForm, setShowExportForm] = useState(false);
 
     const detectImportHeaders = async (file: File, sheetName?: string) => {
       const headersFormData = new FormData();
@@ -71,7 +71,7 @@ function Configuration() {
         setHeaderMapping({});
         setAvailableSheets([]);
         setSelectedSheet("");
-        setShowExportFormat(false);
+        setShowExportForm(false);
         try {
           await detectImportHeaders(file);
         } catch (err) {
@@ -139,13 +139,13 @@ function Configuration() {
         }
     };
 
-    const handleExportAllData = async () => {
-      setIsProcessing(true);
+    const handleExportAllData = async (format: "csv" | "xlsx", fileName: string, saveHandle: any) => {
+      setIsExporting(true);
       setMessage("");
       setError("");
 
       try {
-        const response = await fetch(`${API_BASE}/config/export?format=${exportFormat}`, {
+        const response = await fetch(`${API_BASE}/config/export?format=${format}`, {
           method: "GET",
           credentials: "include",
         });
@@ -164,36 +164,15 @@ function Configuration() {
         }
 
         const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        const contentDisposition = response.headers.get("content-disposition");
-        const fileNameMatch = contentDisposition?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
-        const fileNameFromHeader = fileNameMatch?.[1]?.replace(/['"]/g, "");
-        link.setAttribute(
-          "download",
-          fileNameFromHeader || `all_data_backup_${new Date().toISOString().split("T")[0]}.${exportFormat}`
-        );
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode?.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
+        await saveBlob(blob, fileName, format, saveHandle);
         setMessage("Data exported successfully.");
+        setShowExportForm(false);
       } catch (err) {
         console.error("Export error:", err);
         setError("Network error. Please try again.");
       } finally {
-        setIsProcessing(false);
-        setShowExportFormat(false);
+        setIsExporting(false);
       }
-    };
-
-    const handleExportButtonClick = () => {
-      if (!showExportFormat) {
-        setShowExportFormat(true);
-        return;
-      }
-      void handleExportAllData();
     };
 
     const handleSaveConfig = async () => {
@@ -220,24 +199,6 @@ function Configuration() {
             setIsSaving(false);
         }
     };
-
-    const handleExportFormatChange = (value: string) => {
-      if (exportFormatOptions.has(value)) {
-        setExportFormat(value as "csv" | "xlsx");
-      }
-    };
-
-    useEffect(() => {
-      if (showExportFormat) {
-        exportFormatSelectRef.current?.focus();
-      }
-    }, [showExportFormat]);
-
-    const exportButtonText = isProcessing
-      ? "Đang xuất..."
-      : showExportFormat
-        ? "Xác nhận xuất thông tin đăng ký"
-        : "Xuất thông tin đăng ký";
 
     return (
         <div id="root" className="flex">
@@ -272,12 +233,12 @@ function Configuration() {
                         {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
                         </button>
                         <button
-                        onClick={handleExportButtonClick}
-                        disabled={isProcessing}
+                        onClick={() => setShowExportForm(true)}
+                        disabled={isProcessing || isExporting}
                         className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
                         >
                         <Download className="w-5 h-5 mr-2" />
-                        {exportButtonText}
+                        {isExporting ? "Đang xuất..." : "Xuất thông tin đăng ký"}
                         </button>
                         <button
                             onClick={handleSaveConfig}
@@ -289,23 +250,15 @@ function Configuration() {
                         </span>
                         </button>
                     </div>
-                    {showExportFormat && (
-                      <div className="export-format-section">
-                        <label htmlFor="config-export-format" className="export-format-label">Định dạng xuất</label>
-                        <select
-                          id="config-export-format"
-                          aria-label="Export format"
-                          value={exportFormat}
-                          onChange={(e) => handleExportFormatChange(e.target.value)}
-                          disabled={isProcessing}
-                          className="export-format-select"
-                          ref={exportFormatSelectRef}
-                        >
-                          <option value="csv">CSV</option>
-                          <option value="xlsx">XLSX</option>
-                        </select>
-                      </div>
-                    )}
+                    <ExportConfirmationForm
+                      open={showExportForm}
+                      isProcessing={isExporting}
+                      defaultFileName={`all_data_backup_${new Date().toISOString().split("T")[0]}`}
+                      onCancel={() => setShowExportForm(false)}
+                      onSubmit={({ format, fileName, saveHandle }) => {
+                        void handleExportAllData(format, fileName, saveHandle);
+                      }}
+                    />
                     {pendingFile && availableSheets.length > 0 && (
                       <div className="import-sheet-section">
                         <label htmlFor="config-import-sheet" className="export-format-label">Sheet name</label>

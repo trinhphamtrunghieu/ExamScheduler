@@ -70,7 +70,7 @@ public class Dang_Ky_Controller {
 	}
 
 	@PostMapping("/export")
-	public ResponseEntity<?> exportRegistration() {
+	public ResponseEntity<?> exportRegistration(@RequestParam(value = "format", required = false, defaultValue = "csv") String format) {
 		List<Registration> registrations = new ArrayList<>();
 		for (Student student : Cache.cache.students.values()) {
 			registrations.addAll(student.getRegistrations());
@@ -81,16 +81,26 @@ public class Dang_Ky_Controller {
 				response.put("error", "no data to export");
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 			}
-			byte[] csvBytes = Common.exportRegistrations(registrations);
+			boolean exportAsXlsx = "xlsx".equalsIgnoreCase(format);
+			byte[] exportBytes = exportAsXlsx
+					? Common.exportRegistrationsXlsx(registrations)
+					: Common.exportRegistrations(registrations);
+			String fileExtension = exportAsXlsx ? "xlsx" : "csv";
+			String contentType = exportAsXlsx
+					? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+					: "text/csv; charset=UTF-8";
+
 			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentType(MediaType.parseMediaType(contentType));
 			headers.setContentDispositionFormData("attachment",
-					"exam_schedule_" + java.time.LocalDate.now() + ".csv");
+					"exam_schedule_" + java.time.LocalDate.now() + "." + fileExtension);
 			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
 			return ResponseEntity.ok()
 					.headers(headers)
-					.body(csvBytes);
+					.contentType(MediaType.parseMediaType(contentType))
+					.contentLength(exportBytes.length)
+					.body(exportBytes);
 
 		} catch (Exception e) {
 			return ResponseEntity.internalServerError().build();
