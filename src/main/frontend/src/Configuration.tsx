@@ -17,6 +17,7 @@ function Configuration() {
     const [availableSheets, setAvailableSheets] = useState<string[]>([]);
     const [selectedSheet, setSelectedSheet] = useState("");
     const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
+    const [showExportFormat, setShowExportFormat] = useState(false);
     const exportFormatOptions = new Set(["csv", "xlsx"]);
 
     const detectImportHeaders = async (file: File, sheetName?: string) => {
@@ -69,6 +70,7 @@ function Configuration() {
         setHeaderMapping({});
         setAvailableSheets([]);
         setSelectedSheet("");
+        setShowExportFormat(false);
         try {
           await detectImportHeaders(file);
         } catch (err) {
@@ -181,7 +183,16 @@ function Configuration() {
         setError("Network error. Please try again.");
       } finally {
         setIsProcessing(false);
+        setShowExportFormat(false);
       }
+    };
+
+    const handleExportClick = async () => {
+      if (!showExportFormat) {
+        setShowExportFormat(true);
+        return;
+      }
+      await handleExportAllData();
     };
 
     const handleSaveConfig = async () => {
@@ -248,12 +259,12 @@ function Configuration() {
                         {isProcessing ? "Importing..." : "Nhập thông tin đăng ký"}
                         </button>
                         <button
-                        onClick={handleExportAllData}
+                        onClick={handleExportClick}
                         disabled={isProcessing}
                         className="flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg w-full"
                         >
                         <Download className="w-5 h-5 mr-2" />
-                        {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
+                        {isProcessing ? "Exporting..." : showExportFormat ? "Xác nhận xuất thông tin đăng ký" : "Xuất thông tin đăng ký"}
                         </button>
                         <button
                             onClick={handleSaveConfig}
@@ -265,20 +276,22 @@ function Configuration() {
                         </span>
                         </button>
                     </div>
-                    <div className="export-format-section">
-                      <label htmlFor="config-export-format" className="export-format-label">Định dạng xuất</label>
-                      <select
-                        id="config-export-format"
-                        aria-label="Export format"
-                        value={exportFormat}
-                        onChange={(e) => handleExportFormatChange(e.target.value)}
-                        disabled={isProcessing}
-                        className="export-format-select"
-                      >
-                        <option value="csv">CSV</option>
-                        <option value="xlsx">XLSX</option>
-                      </select>
-                    </div>
+                    {showExportFormat && (
+                      <div className="export-format-section">
+                        <label htmlFor="config-export-format" className="export-format-label">Định dạng xuất</label>
+                        <select
+                          id="config-export-format"
+                          aria-label="Export format"
+                          value={exportFormat}
+                          onChange={(e) => handleExportFormatChange(e.target.value)}
+                          disabled={isProcessing}
+                          className="export-format-select"
+                        >
+                          <option value="csv">CSV</option>
+                          <option value="xlsx">XLSX</option>
+                        </select>
+                      </div>
+                    )}
                     {pendingFile && availableSheets.length > 0 && (
                       <div className="import-sheet-section">
                         <label htmlFor="config-import-sheet" className="export-format-label">Sheet name</label>
