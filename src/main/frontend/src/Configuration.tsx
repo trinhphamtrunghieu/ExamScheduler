@@ -14,6 +14,7 @@ function Configuration() {
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
     const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
+    const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
 
     const handleImportAllData = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -97,7 +98,7 @@ function Configuration() {
       setError("");
 
       try {
-        const response = await fetch(`${API_BASE}/config/export?format=xlsx`, {
+        const response = await fetch(`${API_BASE}/config/export?format=${exportFormat}`, {
           method: "GET",
           credentials: "include",
         });
@@ -124,7 +125,7 @@ function Configuration() {
         const fileNameFromHeader = fileNameMatch?.[1]?.replace(/['"]/g, "");
         link.setAttribute(
           "download",
-          fileNameFromHeader || `all_data_backup_${new Date().toISOString().split("T")[0]}.xlsx`
+          fileNameFromHeader || `all_data_backup_${new Date().toISOString().split("T")[0]}.${exportFormat}`
         );
         document.body.appendChild(link);
         link.click();
@@ -204,6 +205,15 @@ function Configuration() {
                         <Download className="w-5 h-5 mr-2" />
                         {isProcessing ? "Exporting..." : "Xuất thông tin đăng ký"}
                         </button>
+                        <select
+                          value={exportFormat}
+                          onChange={(e) => setExportFormat(e.target.value as "csv" | "xlsx")}
+                          disabled={isProcessing}
+                          className="p-3 rounded-lg border border-gray-300 w-full"
+                        >
+                          <option value="csv">CSV</option>
+                          <option value="xlsx">XLSX</option>
+                        </select>
                         <button
                             onClick={handleSaveConfig}
                             disabled={isSaving}
