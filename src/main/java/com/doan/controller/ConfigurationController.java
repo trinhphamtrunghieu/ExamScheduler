@@ -19,7 +19,7 @@ public class ConfigurationController {
 	private static final Set<String> REQUIRED_HEADERS = Set.of("MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên");
 
 	@GetMapping("/export")
-	public ResponseEntity<?> exportRegistration() {
+	public ResponseEntity<?> exportRegistration(@RequestParam(value = "format", required = false, defaultValue = "csv") String format) {
 		try {
 			if (cache.students.isEmpty() && cache.subjects.isEmpty() && cache.classes.isEmpty()) {
 				System.out.println("Cache empty");
@@ -27,19 +27,24 @@ public class ConfigurationController {
 				response.put("error", "no data to export");
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 			}
-			byte[] csvBytes = cache.exportAll();
+			boolean exportAsXlsx = "xlsx".equalsIgnoreCase(format);
+			byte[] exportedBytes = exportAsXlsx ? cache.exportAllXlsx() : cache.exportAll();
+			String fileExtension = exportAsXlsx ? "xlsx" : "csv";
+			String contentType = exportAsXlsx
+					? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+					: "text/csv; charset=UTF-8";
 
 			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.parseMediaType("text/csv"));
+			headers.setContentType(MediaType.parseMediaType(contentType));
 			headers.setContentDispositionFormData("attachment",
-					"exam_schedule_" + java.time.LocalDate.now() + ".csv");
+					"exam_schedule_" + java.time.LocalDate.now() + "." + fileExtension);
 			headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
 			return ResponseEntity.ok()
 					.headers(headers)
-					.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-					.contentLength(csvBytes.length)
-					.body(csvBytes);
+					.contentType(MediaType.parseMediaType(contentType))
+					.contentLength(exportedBytes.length)
+					.body(exportedBytes);
 
 		} catch (Exception e) {
 			return ResponseEntity.internalServerError().build();
@@ -52,11 +57,18 @@ public class ConfigurationController {
 		Map<String, Object> response = new HashMap<>();
 		try {
 			if (file.isEmpty()) {
-				response.put("error", "Please upload a csv file to import");
+				response.put("error", "Please upload a file to import");
+				return ResponseEntity.badRequest().body(response);
 			}
 			Map<String, String> requestedHeaderMapping = Helper.parseHeaderMappingString(headerMapping);
 			Map<String, String> resolvedHeaders = new HashMap<>();
-			List<CSVRecord> records = Helper.parseCSVFromValidHeaderWithResolvedHeaders(file.getBytes(), REQUIRED_HEADERS, requestedHeaderMapping, resolvedHeaders);
+			List<CSVRecord> records = Helper.parseTabularFileFromValidHeaderWithResolvedHeaders(
+					file.getOriginalFilename(),
+					file.getBytes(),
+					REQUIRED_HEADERS,
+					requestedHeaderMapping,
+					resolvedHeaders
+			);
 			cache.importAll(records, false, resolvedHeaders);
 			response.put("message", "Imported successfully");
 			return ResponseEntity.ok(response);
@@ -74,11 +86,11 @@ public class ConfigurationController {
 	public ResponseEntity<Map<String, Object>> detectConfigImportHeaders(@RequestParam("file") MultipartFile file) {
 		Map<String, Object> response = new HashMap<>();
 		try {
-			response.put("headers", Helper.detectHeaders(file.getBytes(), REQUIRED_HEADERS));
+			response.put("headers", Helper.detectHeadersFromFile(file.getOriginalFilename(), file.getBytes(), REQUIRED_HEADERS));
 			response.put("expectedHeaders", REQUIRED_HEADERS);
 			return ResponseEntity.ok(response);
 		} catch (Exception e) {
-			response.put("error", "Cannot detect headers from CSV file");
+			response.put("error", "Cannot detect headers from file");
 			return ResponseEntity.badRequest().body(response);
 		}
 	}

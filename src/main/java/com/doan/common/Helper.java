@@ -3,11 +3,19 @@ package com.doan.common;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.csv.CSVPrinter;
 import java.io.StringReader;
 import java.util.stream.Collectors;
 import java.util.*;
@@ -374,6 +383,166 @@ public class Helper {
 		ParsedCSV parsed = parseCSVFromValidHeader(fileBytes, requiredHeaders, requestedHeaderMapping);
 		resolvedHeadersOut.putAll(parsed.resolvedHeaders);
 		return parsed.records;
+	}
+
+	public static List<CSVRecord> parseTabularFileFromValidHeaderWithResolvedHeaders(String fileName,
+	                                                                                  byte[] fileBytes,
+	                                                                                  Set<String> requiredHeaders,
+	                                                                                  Map<String, String> requestedHeaderMapping,
+	                                                                                  Map<String, String> resolvedHeadersOut) throws IOException {
+		byte[] normalizedFileBytes = isXlsxFile(fileName)
+				? convertXlsxToCsvBytes(fileBytes, requiredHeaders, requestedHeaderMapping)
+				: fileBytes;
+		return parseCSVFromValidHeaderWithResolvedHeaders(
+				normalizedFileBytes,
+				requiredHeaders,
+				requestedHeaderMapping,
+				resolvedHeadersOut
+		);
+	}
+
+	public static List<String> detectHeadersFromFile(String fileName, byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
+		if (isXlsxFile(fileName)) {
+			return detectXlsxHeaders(fileBytes, expectedHeaders);
+		}
+		return detectHeaders(fileBytes, expectedHeaders);
+	}
+
+	private static boolean isXlsxFile(String fileName) {
+		if (fileName == null || fileName.isBlank()) return false;
+		return fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx");
+	}
+
+	private static List<String> detectXlsxHeaders(byte[] fileBytes, Set<String> expectedHeaders) throws IOException {
+		List<List<String>> rows = readXlsxRows(fileBytes);
+		List<String> bestHeaders = null;
+		int bestExpectedMatch = -1;
+		int bestHeaderSize = -1;
+		boolean hasExpectedHeaders = expectedHeaders != null && !expectedHeaders.isEmpty();
+
+		for (List<String> row : rows) {
+			List<String> cleanedHeaders = cleanHeaders(row);
+			if (cleanedHeaders.size() < 2) continue;
+
+			int expectedMatchCount = countExpectedHeaderMatches(expectedHeaders, cleanedHeaders);
+			if (hasExpectedHeaders && expectedMatchCount == expectedHeaders.size()) {
+				return cleanedHeaders;
+			}
+
+			if (expectedMatchCount > bestExpectedMatch
+					|| (expectedMatchCount == bestExpectedMatch && cleanedHeaders.size() > bestHeaderSize)) {
+				bestHeaders = cleanedHeaders;
+				bestExpectedMatch = expectedMatchCount;
+				bestHeaderSize = cleanedHeaders.size();
+			}
+		}
+
+		if (bestHeaders != null) {
+			return bestHeaders;
+		}
+		throw new IllegalStateException("Unable to detect XLSX headers");
+	}
+
+	private static byte[] convertXlsxToCsvBytes(byte[] fileBytes,
+	                                            Set<String> requiredHeaders,
+	                                            Map<String, String> requestedHeaderMapping) throws IOException {
+		List<List<String>> rows = readXlsxRows(fileBytes);
+		int headerRowIndex = findXlsxHeaderRowIndex(rows, requiredHeaders, requestedHeaderMapping);
+		List<String> headers = cleanHeaders(rows.get(headerRowIndex));
+		if (headers.isEmpty()) {
+			throw new IllegalStateException("Unable to find headers in XLSX file");
+		}
+
+		try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		     OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+		     CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+			printer.printRecord(headers);
+			for (int rowIndex = headerRowIndex + 1; rowIndex < rows.size(); rowIndex++) {
+				List<String> rowValues = rows.get(rowIndex);
+				List<String> record = new ArrayList<>();
+				boolean hasData = false;
+				for (int col = 0; col < headers.size(); col++) {
+					String value = col < rowValues.size() ? rowValues.get(col).trim() : "";
+					if (!value.isEmpty()) hasData = true;
+					record.add(value);
+				}
+				if (hasData) {
+					printer.printRecord(record);
+				}
+			}
+			printer.flush();
+			return outputStream.toByteArray();
+		}
+	}
+
+	private static int findXlsxHeaderRowIndex(List<List<String>> rows,
+	                                          Set<String> requiredHeaders,
+	                                          Map<String, String> requestedHeaderMapping) {
+		int bestIndex = -1;
+		int bestExpectedMatch = -1;
+		int bestHeaderSize = -1;
+		boolean hasExpectedHeaders = requiredHeaders != null && !requiredHeaders.isEmpty();
+
+		for (int i = 0; i < rows.size(); i++) {
+			List<String> cleanedHeaders = cleanHeaders(rows.get(i));
+			if (cleanedHeaders.size() < 2) continue;
+
+			try {
+				resolveHeaders(requiredHeaders, cleanedHeaders, requestedHeaderMapping);
+				int expectedMatchCount = countExpectedHeaderMatches(requiredHeaders, cleanedHeaders);
+				if (hasExpectedHeaders && expectedMatchCount == requiredHeaders.size()) {
+					return i;
+				}
+				if (expectedMatchCount > bestExpectedMatch
+						|| (expectedMatchCount == bestExpectedMatch && cleanedHeaders.size() > bestHeaderSize)) {
+					bestIndex = i;
+					bestExpectedMatch = expectedMatchCount;
+					bestHeaderSize = cleanedHeaders.size();
+				}
+			} catch (IllegalStateException ignored) {
+			}
+		}
+
+		if (bestIndex >= 0) return bestIndex;
+		throw new IllegalStateException("No valid XLSX header line found");
+	}
+
+	private static List<List<String>> readXlsxRows(byte[] fileBytes) throws IOException {
+		try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
+			Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
+			if (sheet == null) {
+				throw new IllegalStateException("XLSX file does not contain sheets");
+			}
+
+			List<List<String>> rows = new ArrayList<>();
+			DataFormatter formatter = new DataFormatter();
+			for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+				Row row = sheet.getRow(rowIndex);
+				if (row == null || row.getLastCellNum() < 0) {
+					rows.add(new ArrayList<>());
+					continue;
+				}
+				List<String> values = new ArrayList<>();
+				for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
+					Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+					String value = cell == null ? "" : formatter.formatCellValue(cell);
+					values.add(stripBom(value).trim());
+				}
+				rows.add(values);
+			}
+			return rows;
+		}
+	}
+
+	private static List<String> cleanHeaders(List<String> headers) {
+		List<String> cleanedHeaders = new ArrayList<>();
+		for (String header : headers) {
+			String cleaned = stripBom(header).trim();
+			if (!cleaned.isEmpty()) {
+				cleanedHeaders.add(cleaned);
+			}
+		}
+		return cleanedHeaders;
 	}
 
 }

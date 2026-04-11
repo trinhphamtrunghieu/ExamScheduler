@@ -6,6 +6,10 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -143,6 +147,38 @@ public class Cache {
 
 		printer.flush();
 		return csvBytes;
+	}
+
+	public byte[] exportAllXlsx() throws IOException {
+		try (Workbook workbook = new XSSFWorkbook();
+		     ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+			Sheet sheet = workbook.createSheet("Registrations");
+			String[] header = {"STT", "MSSV", "Họ tên", "Mã lớp học", "Môn học", "Giáo viên", "LỚP", "NGÀY THI"};
+
+			Row headerRow = sheet.createRow(0);
+			for (int col = 0; col < header.length; col++) {
+				headerRow.createCell(col).setCellValue(header[col]);
+			}
+
+			int rowIndex = 1;
+			int counter = 1;
+			for (Student student : students.values()) {
+				for (Subject subject : student.participateIn) {
+					Row row = sheet.createRow(rowIndex++);
+					row.createCell(0).setCellValue(counter++);
+					row.createCell(1).setCellValue(student.id);
+					row.createCell(2).setCellValue(student.name);
+					row.createCell(3).setCellValue(subject.id);
+					row.createCell(4).setCellValue(subject.name);
+					row.createCell(5).setCellValue(subject.teacher);
+					row.createCell(6).setCellValue(student.inClass.id);
+					row.createCell(7).setCellValue("");
+				}
+			}
+
+			workbook.write(outputStream);
+			return outputStream.toByteArray();
+		}
 	}
 
 	public void importAll(List<CSVRecord> records, boolean isAppend) throws IOException {

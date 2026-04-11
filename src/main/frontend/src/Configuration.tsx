@@ -31,7 +31,7 @@ function Configuration() {
           });
           const headerData = await headersResponse.json();
           if (!headersResponse.ok) {
-            setError(headerData.error || "Cannot detect CSV headers");
+            setError(headerData.error || "Cannot detect headers");
             return;
           }
           const incomingHeaders = (headerData.headers || []) as string[];
@@ -46,7 +46,7 @@ function Configuration() {
           setHeaderMapping(defaultMapping);
         } catch (err) {
           console.error("Header detection error:", err);
-          setError("Cannot detect CSV headers");
+          setError("Cannot detect headers");
         } finally {
           if (fileInputRef.current) fileInputRef.current.value = "";
         }
@@ -97,7 +97,7 @@ function Configuration() {
       setError("");
 
       try {
-        const response = await fetch(`${API_BASE}/config/export`, {
+        const response = await fetch(`${API_BASE}/config/export?format=xlsx`, {
           method: "GET",
           credentials: "include",
         });
@@ -119,9 +119,12 @@ function Configuration() {
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = downloadUrl;
+        const contentDisposition = response.headers.get("content-disposition");
+        const fileNameMatch = contentDisposition?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+        const fileNameFromHeader = fileNameMatch?.[1]?.replace(/['"]/g, "");
         link.setAttribute(
           "download",
-          `all_data_backup_${new Date().toISOString().split("T")[0]}.csv`
+          fileNameFromHeader || `all_data_backup_${new Date().toISOString().split("T")[0]}.xlsx`
         );
         document.body.appendChild(link);
         link.click();
@@ -180,7 +183,7 @@ function Configuration() {
                         type="file"
                         ref={fileInputRef}
                         onChange={handleImportAllData}
-                        accept=".csv"
+                        accept=".csv,.xlsx"
                         className="hidden"
                         disabled={isProcessing}
                         />
