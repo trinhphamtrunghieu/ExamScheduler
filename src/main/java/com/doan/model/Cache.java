@@ -78,7 +78,7 @@ public class Cache {
 					for (Subject subject : student.participateIn) {
 						printer.printRecord(counter,
 								student.id, student.name,
-								subject.id, subject.name, subject.teacher,
+								subject.name, subject.teacher,
 								student.inClass.id, ""); // Empty exam date
 						counter++;
 					}
@@ -107,7 +107,7 @@ public class Cache {
 	}
 
 	public void addSubjects(Subject s) {
-		subjects.putIfAbsent(s.id, s);
+		subjects.putIfAbsent(s.name, s);
 	}
 
 	public void addSubjects(List<Subject> s) {
@@ -143,14 +143,14 @@ public class Cache {
 			for (Subject subject : student.participateIn) {
 				printer.printRecord(counter,
 						student.id, student.name,
-						subject.id, subject.name, subject.teacher,
+						subject.name, subject.teacher,
 						student.inClass.id);
 				counter++;
 				String[] row = {
 						String.valueOf(counter),
 						String.valueOf(student.id),
 						String.valueOf(student.name),
-						String.valueOf(subject.id),
+						String.valueOf("No id to show"),
 						String.valueOf(subject.name),
 						String.valueOf(subject.teacher),
 						String.valueOf(student.inClass.id),
@@ -184,7 +184,7 @@ public class Cache {
 					row.createCell(0).setCellValue(counter++);
 					row.createCell(1).setCellValue(student.id);
 					row.createCell(2).setCellValue(student.name);
-					row.createCell(3).setCellValue(subject.id);
+					row.createCell(3).setCellValue("No id to show");
 					row.createCell(4).setCellValue(subject.name);
 					row.createCell(5).setCellValue(subject.teacher);
 					row.createCell(6).setCellValue(student.inClass.id);
@@ -230,15 +230,15 @@ public class Cache {
 				teacher = Helper.getValue(record, resolvedHeaders, "Giáo viên");
 				classID = Helper.getValue(record, resolvedHeaders, "Mã lớp học");
 			}
-			boolean hasAnyNonEmptyField = isNonEmptyValue(studentID)
-					|| isNonEmptyValue(studentName)
-					|| isNonEmptyValue(subjectID)
-					|| isNonEmptyValue(subjectName)
-					|| isNonEmptyValue(teacher)
-					|| isNonEmptyValue(classID);
-			if (!hasAnyNonEmptyField) continue;
+//			boolean hasAnyNonEmptyField = isNonEmptyValue(studentID)
+//					|| isNonEmptyValue(studentName)
+//					|| isNonEmptyValue(subjectID)
+//					|| isNonEmptyValue(subjectName)
+//					|| isNonEmptyValue(teacher)
+//					|| isNonEmptyValue(classID);
+//			if (!hasAnyNonEmptyField) continue;
 			totalLines++;
-			if (!isNonEmptyValue(subjectName)) continue;
+//			if (!isNonEmptyValue(subjectName)) continue;
 			importedLines++;
 			Student student = newCache.students.get(studentID);
 			if (student == null) {

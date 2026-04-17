@@ -33,7 +33,7 @@ public class Student {
 		for (Subject s : participateIn) {
 			String studentInfo = "%s,%s";
 			res.append(String.format(studentInfo, this.id, this.name)).append(",")
-					.append(s.id).append(",").append(s.name).append(",")
+					.append("No id to show").append(",").append(s.name).append(",")
 					.append(inClass.id).append(",")
 					.append(participateIn.size())
 					.append("\n");
@@ -58,7 +58,7 @@ public class Student {
 		registration.setStudentClass(this.inClass.id);
 		registration.setMa_sinh_vien(this.id);
 		registration.setTen_sinh_vien(this.name);
-		registration.setMa_mon_hoc(subject.id);
+		registration.setMa_mon_hoc("No id to show");
 		registration.setTen_mon_hoc(subject.name);
 		registration.setTen_giang_vien(subject.teacher);
 		registrations.add(registration);

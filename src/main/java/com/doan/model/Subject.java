@@ -3,6 +3,7 @@ package com.doan.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Date;
 import java.util.ArrayList;
@@ -12,7 +13,7 @@ import java.util.List;
 @Setter
 public class Subject {
 	public String name;
-	public String id;
+//	public String id;
 	public String teacher;
 	public Date startDate;
 	public Date endDate;
@@ -24,8 +25,8 @@ public class Subject {
 	public Subject() {}
 
 	public Subject(String id, String name, String teacher) {
-		this.name = name;
-		this.id = id;
+		this.name = StringUtils.upperCase(name);
+//		this.id = id;
 		this.teacher = teacher;
 		this.duration = 90;
 	}

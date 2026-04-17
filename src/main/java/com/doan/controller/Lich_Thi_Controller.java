@@ -64,8 +64,7 @@ public class Lich_Thi_Controller {
 				response.put("error", conflict_check);
 				response.put("data", schedule);
 				System.out.println(conflict_check);
-				return ResponseEntity.status(HttpStatus.OK)
-						.body(response);
+				return ResponseEntity.badRequest().body(response);
 			} else {
 				Map<String, Object> response = new HashMap<>();
 				response.put("error", "success");
@@ -73,13 +72,12 @@ public class Lich_Thi_Controller {
 				return ResponseEntity.status(HttpStatus.OK)
 						.body(response);
 			}
-		} catch (IllegalStateException ex) {
+		} catch (Exception ex) {
 			System.out.println(ex.getMessage());
 			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Generate schedule failed");
 			response.put("data", ex.getMessage());
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-					.body(response);
+			return ResponseEntity.badRequest().body(response);
 		}
 	}
 

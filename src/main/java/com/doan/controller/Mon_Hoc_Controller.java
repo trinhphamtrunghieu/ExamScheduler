@@ -32,7 +32,7 @@ public class Mon_Hoc_Controller {
 
 	@PostMapping("/add")
 	public ResponseEntity<Subject> addCourse(@RequestBody Subject newCourse) {
-		if (newCourse.id == null || newCourse.name == null || newCourse.id.isEmpty() || newCourse.name.isEmpty()) {
+		if (newCourse.name == null || newCourse.name.isEmpty()) {
 			return ResponseEntity.badRequest().build();
 		}
 		Cache cache = Cache.cache;
@@ -102,7 +102,7 @@ public class Mon_Hoc_Controller {
 			Cache cache = Cache.cache;
 			Set<String> existingIds = new HashSet<>(cache.subjects.values()
 					.stream()
-					.map(Subject::getId)
+					.map(Subject::getName)
 					.collect(Collectors.toSet()));
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy"); // handles single-digit day/month
 			List<Subject> subjects = new ArrayList<>();
@@ -126,7 +126,6 @@ public class Mon_Hoc_Controller {
 						continue;
 
 					Subject subject = new Subject();
-					subject.setId(subjectID);
 					subject.setName(subjectName);
 					subject.setTeacher(teacher);
 					subject.setDuration(duration);
