@@ -25,6 +25,7 @@ public class ExamSchedulerService {
 	private int endHour = 18;
 	private int totalCourse = 100;
 	private int maxExamPerDay = 5;
+	private int maxExamPerStudentPerDay = 3;
 
 	private List<LocalTime> timeSlots;
 	private Map<String, List<String>> studentCourseMap = new HashMap<>();
@@ -64,6 +65,7 @@ public class ExamSchedulerService {
 		this.totalCourse = courses.size();
 		this.timeSlots = generateTimeSlots(options.getHourFromInt(), options.getHourToInt());
 		this.maxExamPerDay = options.getMaxExamPerDay();
+		this.maxExamPerStudentPerDay = Math.max(1, options.getMaxExamPerStudentPerDay());
 
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		List<List<Schedule>> population = generateInitialPopulation(courses);
@@ -192,6 +194,9 @@ public class ExamSchedulerService {
 				if (hasDirectTimeConflict(candidate, existingSchedule)) {
 					continue;
 				}
+				if (exceedsStudentDailyLimit(candidate, existingSchedule)) {
+					continue;
+				}
 
 				return candidate;
 			}
@@ -256,6 +261,10 @@ public class ExamSchedulerService {
 	}
 
 	private boolean isValidExamPlacement(Schedule newExam, List<Schedule> schedule) {
+		if (exceedsStudentDailyLimit(newExam, schedule)) {
+			return false;
+		}
+
 		LocalTime start = newExam.getTime().toLocalTime();
 		LocalTime end = start.plusMinutes(newExam.getSubject().duration);
 
@@ -271,6 +280,27 @@ public class ExamSchedulerService {
 			}
 		}
 		return true;
+	}
+
+	private boolean exceedsStudentDailyLimit(Schedule newExam, List<Schedule> schedule) {
+		LocalDate examDate = newExam.getDate().toLocalDate();
+		String newSubjectName = newExam.getSubjectName();
+
+		for (Map.Entry<String, List<String>> entry : studentCourseMap.entrySet()) {
+			List<String> studentCourses = entry.getValue();
+			if (!studentCourses.contains(newSubjectName)) {
+				continue;
+			}
+			long sameDayExamCount = schedule.stream()
+					.filter(existing -> existing.getDate().toLocalDate().equals(examDate))
+					.filter(existing -> studentCourses.contains(existing.getSubjectName()))
+					.count();
+			if (sameDayExamCount >= maxExamPerStudentPerDay) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private List<Future<Integer>> evaluatePopulation(List<List<Schedule>> population, ExecutorService executor) {
@@ -317,6 +347,8 @@ public class ExamSchedulerService {
 
 		int conflicts = countStudentConflicts(schedule);
 		fitness -= conflicts * 50;
+		int dailyLimitViolations = countStudentDailyLimitViolations(schedule);
+		fitness -= dailyLimitViolations * 100;
 
 		return fitness;
 	}
@@ -348,6 +380,24 @@ public class ExamSchedulerService {
 			}
 		}
 		return conflicts;
+	}
+
+	private int countStudentDailyLimitViolations(List<Schedule> schedule) {
+		int violations = 0;
+		for (Student student : Cache.cache.students.values()) {
+			Map<LocalDate, Long> examsPerDay = schedule.stream()
+					.filter(s -> student.registrations.stream()
+							.anyMatch(r -> r.getTen_mon_hoc().equals(s.getSubjectName())))
+					.collect(Collectors.groupingBy(
+							s -> s.getDate().toLocalDate(),
+							Collectors.counting()));
+			for (Long count : examsPerDay.values()) {
+				if (count > maxExamPerStudentPerDay) {
+					violations += (int) (count - maxExamPerStudentPerDay);
+				}
+			}
+		}
+		return violations;
 	}
 
 	private List<List<Schedule>> evolvePopulation(List<List<Schedule>> population, List<Integer> scores) {
@@ -506,6 +556,22 @@ public class ExamSchedulerService {
 						result.append(String.format("Student %s has conflict between %s and %s\n",
 								student.name, a.getSubjectName(), b.getSubjectName()));
 					}
+				}
+			}
+		}
+
+		for (Student student : Cache.cache.students.values()) {
+			Map<LocalDate, Long> examsPerDay = schedule.stream()
+					.filter(s -> student.registrations.stream()
+							.anyMatch(r -> r.getTen_mon_hoc().equals(s.getSubjectName())))
+					.collect(Collectors.groupingBy(
+							s -> s.getDate().toLocalDate(),
+							Collectors.counting()));
+			for (Map.Entry<LocalDate, Long> dayEntry : examsPerDay.entrySet()) {
+				if (dayEntry.getValue() > maxExamPerStudentPerDay) {
+					result.append(String.format(
+							"Student %s exceeds max exams per day on %s (%d > %d)\n",
+							student.name, dayEntry.getKey(), dayEntry.getValue(), maxExamPerStudentPerDay));
 				}
 			}
 		}

@@ -22,6 +22,7 @@ public class Lich_Thi_Option {
 	private double mutationRate = 0.1;
 	private int maxGenerations = 500;
 	private int maxExamPerDay = 5;
+	private int maxExamPerStudentPerDay = 3;
 	private int convertTo24Hour(String time) {
 		if (time != null && !time.isEmpty()) {
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");

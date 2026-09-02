@@ -15,6 +15,7 @@ import java.util.stream.IntStream;
 @Service
 public class ExamSchedulerService2 {
 	public List<Registration> cur_registration = new ArrayList<>();
+	private int maxExamPerStudentPerDay = 3;
 	/**
 	 * Generates exam schedule with minimum number of groups (time slots)
 	 */
@@ -30,11 +31,13 @@ public class ExamSchedulerService2 {
 		for (Student student : cache.students.values()) {
 			registrations.addAll(student.registrations);
 		}
+		maxExamPerStudentPerDay = Math.max(1, options.getMaxExamPerStudentPerDay());
 		cur_registration = registrations;
 		// 2. Build index maps
 		Map<String, Integer> subjectToIndex = buildSubjectIndexMap(subjects);
 		Map<Integer, String> indexToSubject = buildIndexToSubjectMap(subjectToIndex);
 		Map<String, Subject> nameToSubject = buildNameToSubjectMap(subjects);
+		Map<String, Set<String>> subjectToStudents = buildSubjectToStudentsMap(registrations);
 
 		// 3. Build conflict graph
 		List<Set<Integer>> conflictGraph = buildConflictGraph(registrations, subjectToIndex);
@@ -45,7 +48,7 @@ public class ExamSchedulerService2 {
 		// 5. Generate available time slots
 		List<LocalDateTime> availableSlots = generateAvailableTimeSlots(options);
 		// 6. Create exam schedule
-		return createExamSchedule(subjectToGroup, indexToSubject, nameToSubject, availableSlots);
+		return createExamSchedule(subjectToGroup, indexToSubject, nameToSubject, availableSlots, subjectToStudents);
 	}
 
 	/**
@@ -198,7 +201,8 @@ public class ExamSchedulerService2 {
 	private List<Schedule> createExamSchedule(Map<Integer, Integer> subjectToGroup,
 	                                          Map<Integer, String> indexToSubject,
 	                                          Map<String, Subject> nameToSubject,
-	                                          List<LocalDateTime> availableSlots) {
+	                                          List<LocalDateTime> availableSlots,
+	                                          Map<String, Set<String>> subjectToStudents) {
 		List<Schedule> result = new ArrayList<>();
 
 		// Group subjects by their assigned group (color)
@@ -220,10 +224,11 @@ public class ExamSchedulerService2 {
 			);
 		}
 
-		for (int i = 0; i < sortedGroups.size(); i++) {
-			int group = sortedGroups.get(i);
-			LocalDateTime slotTime = availableSlots.get(i);
+		Map<Integer, LocalDateTime> groupToSlot = assignGroupsToSlots(
+				sortedGroups, groupToSubjects, indexToSubject, availableSlots, subjectToStudents);
 
+		for (int group : sortedGroups) {
+			LocalDateTime slotTime = groupToSlot.get(group);
 			for (int subjectIndex : groupToSubjects.get(group)) {
 				String subjectName = indexToSubject.get(subjectIndex);
 				Subject subject = nameToSubject.get(subjectName);
@@ -239,6 +244,75 @@ public class ExamSchedulerService2 {
 		}
 
 		return result;
+	}
+
+	private Map<String, Set<String>> buildSubjectToStudentsMap(List<Registration> registrations) {
+		Map<String, Set<String>> subjectToStudents = new HashMap<>();
+		for (Registration registration : registrations) {
+			subjectToStudents
+					.computeIfAbsent(registration.getTen_mon_hoc(), key -> new HashSet<>())
+					.add(registration.getMa_sinh_vien());
+		}
+		return subjectToStudents;
+	}
+
+	private Map<Integer, LocalDateTime> assignGroupsToSlots(List<Integer> sortedGroups,
+	                                                         Map<Integer, List<Integer>> groupToSubjects,
+	                                                         Map<Integer, String> indexToSubject,
+	                                                         List<LocalDateTime> availableSlots,
+	                                                         Map<String, Set<String>> subjectToStudents) {
+		Map<Integer, LocalDateTime> groupToSlot = new HashMap<>();
+		Map<String, Map<LocalDate, Integer>> studentDailyCounts = new HashMap<>();
+		List<LocalDateTime> sortedSlots = new ArrayList<>(availableSlots);
+		Collections.sort(sortedSlots);
+
+		for (int group : sortedGroups) {
+			List<Integer> subjects = groupToSubjects.get(group);
+			Set<String> studentsInGroup = new HashSet<>();
+			for (int subjectIndex : subjects) {
+				String subjectName = indexToSubject.get(subjectIndex);
+				studentsInGroup.addAll(subjectToStudents.getOrDefault(subjectName, Collections.emptySet()));
+			}
+
+			LocalDateTime chosenSlot = null;
+			for (LocalDateTime slot : sortedSlots) {
+				if (canAssignGroupToDate(studentsInGroup, slot.toLocalDate(), studentDailyCounts)) {
+					chosenSlot = slot;
+					break;
+				}
+			}
+
+			if (chosenSlot == null) {
+				throw new IllegalStateException("Cannot assign schedule with current max exams per student per day limit.");
+			}
+
+			groupToSlot.put(group, chosenSlot);
+			incrementStudentDailyCounts(studentsInGroup, chosenSlot.toLocalDate(), studentDailyCounts);
+			sortedSlots.remove(chosenSlot);
+		}
+
+		return groupToSlot;
+	}
+
+	private boolean canAssignGroupToDate(Set<String> studentsInGroup, LocalDate examDate,
+	                                     Map<String, Map<LocalDate, Integer>> studentDailyCounts) {
+		for (String studentId : studentsInGroup) {
+			int count = studentDailyCounts
+					.getOrDefault(studentId, Collections.emptyMap())
+					.getOrDefault(examDate, 0);
+			if (count >= maxExamPerStudentPerDay) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void incrementStudentDailyCounts(Set<String> studentsInGroup, LocalDate examDate,
+	                                         Map<String, Map<LocalDate, Integer>> studentDailyCounts) {
+		for (String studentId : studentsInGroup) {
+			Map<LocalDate, Integer> dailyCounts = studentDailyCounts.computeIfAbsent(studentId, key -> new HashMap<>());
+			dailyCounts.put(examDate, dailyCounts.getOrDefault(examDate, 0) + 1);
+		}
 	}
 
 	/**
@@ -287,6 +361,9 @@ public class ExamSchedulerService2 {
 				return false;
 			}
 		}
+		if (hasExceededStudentDailyLimit(schedule, registrations)) {
+			return false;
+		}
 		return true;
 	}
 
@@ -315,6 +392,24 @@ public class ExamSchedulerService2 {
 			}
 		}
 		res = sb.toString();
+		return false;
+	}
+
+	private boolean hasExceededStudentDailyLimit(List<Schedule> schedule, List<Registration> registrations) {
+		Map<String, Set<String>> subjectToStudents = buildSubjectToStudentsMap(registrations);
+		Map<String, Map<LocalDate, Integer>> studentDailyCount = new HashMap<>();
+		for (Schedule exam : schedule) {
+			Set<String> students = subjectToStudents.getOrDefault(exam.getSubjectName(), Collections.emptySet());
+			LocalDate examDate = exam.getDate().toLocalDate();
+			for (String studentId : students) {
+				Map<LocalDate, Integer> daily = studentDailyCount.computeIfAbsent(studentId, key -> new HashMap<>());
+				int count = daily.getOrDefault(examDate, 0) + 1;
+				if (count > maxExamPerStudentPerDay) {
+					return true;
+				}
+				daily.put(examDate, count);
+			}
+		}
 		return false;
 	}
 }
