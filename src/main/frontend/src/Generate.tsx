@@ -15,8 +15,6 @@ function Generate() {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [dayFrom, setDayFrom] = useState("");
   const [dayTo, setDayTo] = useState("");
-  const [hourFrom, setHourFrom] = useState("");
-  const [hourTo, setHourTo] = useState("");
   const [populationSize, setPopulationSize] = useState(100);
   const [crossoverRate, setCrossoverRate] = useState(0.8);
   const [mutationRate, setMutationRate] = useState(0.25);
@@ -25,6 +23,10 @@ function Generate() {
   const [maxExamPerDay, setMaxExamPerDay] = useState(5);
   const [showExportForm, setShowExportForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Default slots must match scheduler defaults (ExamSchedulerService.generateTimeSlots / getDefaultTimes)
+  const DEFAULT_SLOTS = ["08:00", "10:00", "13:00", "15:00", "16:30"];
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
 
   useEffect(() => {
     fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
@@ -46,72 +48,86 @@ function Generate() {
       .catch((error) => console.error("Error fetching subjects:", error));
   }, []);
 
-    const fetchScheduleWithRetry = async (options, method, retries = 3) => {
-        for (let i = 0; i < retries; i++) {
-            try {
-                let path = "generate"
-                if (method === '1') {
-                    path = "generate"
-                } else if (method === '2') {
-                    path = "generate2"
-                } else {
-                    throw new Error(`Invalid method: ${method}`)
-                }
-                const response = await fetch(`${API_BASE}/schedule/${path}`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(options),
-                });
-
-                if (!response.ok) {
-                    if (response.status === 500) {
-                        console.error("Internal Server Error, retrying...");
-                        continue; // Retry on 500 Internal Server Error
-                    }
-                    throw new Error(`Error: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                    console.log(data);
-                    return data; // Return successful response data
-                } catch (error) {
-                    if (i === retries - 1) {
-                        throw error; // Throw error if last retry fails
-                }
-            }
+  const fetchScheduleWithRetry = async (options, method, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        let path = "generate"
+        if (method === '1') {
+          path = "generate"
+        } else if (method === '2') {
+          path = "generate2"
+        } else {
+          throw new Error(`Invalid method: ${method}`)
         }
-    };
+        const response = await fetch(`${API_BASE}/schedule/${path}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(options),
+        });
+
+        if (!response.ok) {
+          if (response.status === 500) {
+            console.error("Internal Server Error, retrying...");
+            continue; // Retry on 500 Internal Server Error
+          }
+          throw new Error(`Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(data);
+        return data; // Return successful response data
+      } catch (error) {
+        if (i === retries - 1) {
+          throw error; // Throw error if last retry fails
+        }
+      }
+    }
+  };
+
+  // Helper: add minutes to "HH:mm" string and return "HH:mm" (24h)
+  const addMinutesToTimeString = (timeStr: string, minutesToAdd: number) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    const dt = new Date(Date.UTC(1970, 0, 1, h, m));
+    dt.setUTCMinutes(dt.getUTCMinutes() + minutesToAdd);
+    const hh = String(dt.getUTCHours()).padStart(2, "0");
+    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
 
   const handleGenerateSchedule = (method) => {
     setValidationError("");
+    if (!dayFrom || !dayTo) {
+      setValidationError("Please select both Day From and Day To.");
+      return;
+    }
+
     const dateFrom = new Date(dayFrom);
     const dateTo = new Date(dayTo);
-    const timeFrom = new Date(`1970-01-01T${hourFrom}:00`);
-    const timeTo = new Date(`1970-01-01T${hourTo}:00`);
 
     if (dateTo < dateFrom) {
       setValidationError("Error: 'Date To' must be later than 'Date From'.");
       return;
     }
 
-    if (dateTo.getTime() === dateFrom.getTime() && timeTo <= timeFrom) {
-      setValidationError("Error: 'Hour To' must be later than 'Hour From' for the same day.");
+    // Ensure user selected a timeslot
+    if (!selectedTimeSlot) {
+      setValidationError("Please select a timeslot.");
       return;
     }
 
-    if (timeTo <= timeFrom && dateTo > dateFrom) {
-      setValidationError("Error: 'Hour To' must be later than 'Hour From'.");
-      return;
-    }
+    // Compute end time as start + 90 minutes
+    const slotStart = selectedTimeSlot;
+    const slotEnd = addMinutesToTimeString(slotStart, 90); // 90 minutes duration
 
     setIsLoading(true);
     const options = {
       selectedSubjects,
       dayFrom,
       dayTo,
-      hourFrom,
-      hourTo,
+      // Backend expects hourFrom/hourTo strings in "HH:mm" — keep compatibility
+      hourFrom: slotStart,
+      hourTo: slotEnd,
       populationSize,
       crossoverRate,
       mutationRate,
@@ -233,9 +249,18 @@ function Generate() {
             <input type="date" value={dayFrom} onChange={(e) => setDayFrom(e.target.value)} />
             <input type="date" value={dayTo} onChange={(e) => setDayTo(e.target.value)} />
 
-            <label>Time Range:</label>
-            <input type="time" value={hourFrom} onChange={(e) => setHourFrom(e.target.value)} />
-            <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
+            <label>Timeslot (select start time):</label>
+            <select value={selectedTimeSlot} onChange={(e) => setSelectedTimeSlot(e.target.value)}>
+              <option value="">-- Select timeslot --</option>
+              {DEFAULT_SLOTS.map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot} (ends at {addMinutesToTimeString(slot, 90)})
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
+              Each slot is 90 minutes long. The UI will send the selected start time and a computed end time.
+            </div>
 
             <label>Max exams per timeslot:</label>
             <input type="number" onChange={(e) => setMaxExamPerDay(Number(e.target.value))} />
@@ -294,28 +319,28 @@ function Generate() {
             ) : (
               <div className="table-container">
                 <div className="result-section">
-                    <div className="result-header">
-                        <h2>Generated Schedule</h2>
-                        {schedule.length > 0 && (
-                        <button
+                  <div className="result-header">
+                    <h2>Generated Schedule</h2>
+                    {schedule.length > 0 && (
+                      <button
                         onClick={() => setShowExportForm(true)}
                         className="export-button"
                         title="Export"
-                        >
+                      >
                         <Download className="w-4 h-4 mr-2" />
                         Export
-                        </button>
-                        )}
-                    </div>
-                    <ExportConfirmationForm
-                      open={showExportForm}
-                      isProcessing={isExporting}
-                      defaultFileName={`exam_schedule_${new Date().toISOString().split('T')[0]}`}
-                      onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName }) => {
-                        void handleExportCSV(format, fileName);
-                      }}
-                    />
+                      </button>
+                    )}
+                  </div>
+                  <ExportConfirmationForm
+                    open={showExportForm}
+                    isProcessing={isExporting}
+                    defaultFileName={`exam_schedule_${new Date().toISOString().split('T')[0]}`}
+                    onCancel={() => setShowExportForm(false)}
+                    onSubmit={({ format, fileName }) => {
+                      void handleExportCSV(format, fileName);
+                    }}
+                  />
                 </div>
                 <table>
                   <thead>
