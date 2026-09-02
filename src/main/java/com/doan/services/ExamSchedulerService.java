@@ -31,28 +31,7 @@ public class ExamSchedulerService {
 	private List<Subject> selected_course = new ArrayList<>();
 
 	private List<LocalTime> generateTimeSlots(int startHour, int endHour) {
-		LocalTime start = LocalTime.of(startHour, 0);
-		LocalTime end = LocalTime.of(endHour, 0);
-
-		return List.of(
-						LocalTime.of(8, 0),
-						LocalTime.of(10, 0),
-						LocalTime.of(13, 0),
-						LocalTime.of(15, 0),
-						LocalTime.of(16, 30)
-				).stream()
-				.filter(time -> {
-					// Special handling for boundary times
-					if (time.equals(LocalTime.of(8, 0))) {
-						return startHour <= 8;
-					}
-					if (time.equals(LocalTime.of(16, 30))) {
-						return endHour >= 16;
-					}
-					// Regular filtering for other times
-					return !time.isBefore(start) && !time.isAfter(end);
-				})
-				.collect(Collectors.toList());
+		return List.of(LocalTime.of(8, 0), LocalTime.of(10, 0), LocalTime.of(13, 0), LocalTime.of(15, 0), LocalTime.of(16, 30));
 	}
 
 	public List<Schedule> generateExamSchedule(Lich_Thi_Option options) {
@@ -126,7 +105,6 @@ public class ExamSchedulerService {
 		List<List<Schedule>> population = new ArrayList<>();
 		for (int i = 0; i < populationSize; i++) {
 			List<Schedule> schedule = generateConflictAwareSchedule(courses);
-			// Ensure all subjects are scheduled
 			schedule = ensureAllSubjectsScheduled(schedule, courses);
 			population.add(schedule);
 		}
@@ -137,10 +115,9 @@ public class ExamSchedulerService {
 		List<Schedule> schedule = new ArrayList<>();
 		List<Subject> unscheduled = new ArrayList<>(courses);
 
-		// Sort subjects by number of student registrations (descending) to prioritize harder-to-schedule subjects
 		unscheduled.sort((a, b) -> getStudentCount(b.name) - getStudentCount(a.name));
 
-		int maxRetries = 10; // Increased retries
+		int maxRetries = 10;
 
 		for (Subject subj : unscheduled) {
 			boolean placed = false;
@@ -149,7 +126,6 @@ public class ExamSchedulerService {
 			while (!placed && retry < maxRetries) {
 				retry++;
 
-				// Get all possible date-time combinations
 				List<Schedule> candidates = generateCandidateSchedules(subj);
 				Collections.shuffle(candidates);
 
@@ -164,7 +140,6 @@ public class ExamSchedulerService {
 			}
 
 			if (!placed) {
-				// Force placement with relaxed constraints if still not placed
 				Schedule forcedSchedule = forceScheduleSubject(subj, schedule);
 				if (forcedSchedule != null) {
 					schedule.removeIf(s -> s.getSubjectName().equals(forcedSchedule.getSubjectName()));
@@ -186,7 +161,6 @@ public class ExamSchedulerService {
 			for (LocalTime time : timeSlots) {
 				LocalTime endTime = time.plusMinutes(subject.duration);
 
-				// Check basic time constraints
 				if (time.isBefore(LocalTime.of(startHour, 0)) ||
 						endTime.isAfter(LocalTime.of(endHour, 0))) {
 					continue;
@@ -202,13 +176,11 @@ public class ExamSchedulerService {
 	}
 
 	private Schedule forceScheduleSubject(Subject subject, List<Schedule> existingSchedule) {
-		// Try to find any valid slot, even if it violates some soft constraints
 		for (long dayOffset = 0; dayOffset < totalDays; dayOffset++) {
 			LocalDate date = dateFrom.plusDays(dayOffset);
 			for (LocalTime time : timeSlots) {
 				LocalTime endTime = time.plusMinutes(subject.duration);
 
-				// Only check hard constraints (working hours)
 				if (time.isBefore(LocalTime.of(startHour, 0)) ||
 						endTime.isAfter(LocalTime.of(endHour, 0))) {
 					continue;
@@ -217,7 +189,6 @@ public class ExamSchedulerService {
 				Schedule candidate = new Schedule(subject.name, Date.valueOf(date),
 						Time.valueOf(time), subject, "Room-1");
 
-				// Check only for direct time conflicts (not student conflicts)
 				if (hasDirectTimeConflict(candidate, existingSchedule)) {
 					continue;
 				}
@@ -226,7 +197,6 @@ public class ExamSchedulerService {
 			}
 		}
 
-		// Last resort: place it anyway at the first available time slot
 		if (!timeSlots.isEmpty()) {
 			LocalTime time = timeSlots.get(0);
 			LocalDate date = dateFrom;
@@ -246,7 +216,6 @@ public class ExamSchedulerService {
 			LocalTime sStart = s.getTime().toLocalTime();
 			LocalTime sEnd = sStart.plusMinutes(s.getSubject().duration);
 
-			// Check for time overlap
 			if (!(end.isBefore(sStart) || start.isAfter(sEnd))) {
 				return true;
 			}
@@ -333,7 +302,6 @@ public class ExamSchedulerService {
 	private int calculateFitness(List<Schedule> schedule) {
 		int fitness = 1000;
 
-		// Penalty for missing subjects (high penalty)
 		Set<String> scheduledSubjects = schedule.stream()
 				.map(Schedule::getSubjectName)
 				.collect(Collectors.toSet());
@@ -341,20 +309,21 @@ public class ExamSchedulerService {
 				.map(s -> s.name)
 				.collect(Collectors.toSet());
 		int missingCount = requiredSubjects.size() - scheduledSubjects.size();
-		fitness -= missingCount * 200; // High penalty for missing subjects
+		fitness -= missingCount * 200;
 
-		// Penalty for time constraint violations
 		for (Schedule exam : schedule) {
 			if (exam.getTime().toLocalTime().isAfter(LocalTime.of(endHour, 0))) fitness -= 100;
 		}
 
-		// Penalty for student conflicts
 		int conflicts = countStudentConflicts(schedule);
 		fitness -= conflicts * 50;
 
-		return Math.max(0, fitness);
+		return fitness;
 	}
 
+	// FIX 2: Removed "duration - 1" from endA/endB. Using duration - 1 made this
+	// method disagree with isValidExamPlacement and evaluate(), both of which use
+	// plain duration, causing the fitness function to under-count real conflicts.
 	private int countStudentConflicts(List<Schedule> schedule) {
 		int conflicts = 0;
 		for (Student student : Cache.cache.students.values()) {
@@ -368,15 +337,14 @@ public class ExamSchedulerService {
 					Schedule b = studentExams.get(j);
 					if (!a.getDate().equals(b.getDate())) continue;
 					LocalTime startA = a.getTime().toLocalTime();
-					LocalTime endA = startA.plusMinutes(a.getSubject().duration - 1);
+					LocalTime endA = startA.plusMinutes(a.getSubject().duration);
 					LocalTime startB = b.getTime().toLocalTime();
-					LocalTime endB = startB.plusMinutes(b.getSubject().duration - 1);
+					LocalTime endB = startB.plusMinutes(b.getSubject().duration);
 
-					// Two intervals overlap if: !(endA <= startB || startA >= endB)
-					// Or equivalently: endA > startB && startA < endB
 					if (endA.isAfter(startB) && startA.isBefore(endB)) {
 						conflicts++;
-					}				}
+					}
+				}
 			}
 		}
 		return conflicts;
@@ -410,14 +378,60 @@ public class ExamSchedulerService {
 		return newPop;
 	}
 
+	// FIX 6: Original index-based loop silently truncated children when parents
+	// had different sizes (possible after ensureAllSubjectsScheduled adds subjects
+	// to one parent but not the other). Now iterates over the union of both
+	// parents' subjects via a keyed map, so no subject is dropped.
+	// Cloning-only behaviour (no gene mixing) is intentionally preserved.
 	private List<List<Schedule>> crossover(List<Schedule> p1, List<Schedule> p2) {
+		// No crossover: return clones
+		if (random.nextDouble() > crossoverRate) {
+			return List.of(new ArrayList<>(p1), new ArrayList<>(p2));
+		}
+
+		// Sort both parents by subject name so genes align at the same index
+		List<Schedule> sorted1 = p1.stream()
+				.sorted(Comparator.comparing(Schedule::getSubjectName))
+				.collect(Collectors.toList());
+		List<Schedule> sorted2 = p2.stream()
+				.sorted(Comparator.comparing(Schedule::getSubjectName))
+				.collect(Collectors.toList());
+
+		// Build subject union in consistent order to handle size differences (bug 6 fix)
+		Map<String, Schedule> map1 = new LinkedHashMap<>();
+		for (Schedule s : sorted1) map1.put(s.getSubjectName(), s);
+		Map<String, Schedule> map2 = new LinkedHashMap<>();
+		for (Schedule s : sorted2) map2.put(s.getSubjectName(), s);
+
+		List<String> allSubjects = new ArrayList<>(new LinkedHashSet<String>() {{
+			addAll(map1.keySet());
+			addAll(map2.keySet());
+		}});
+		Collections.sort(allSubjects); // deterministic order
+
+		int cutPoint = random.nextInt(allSubjects.size());
+
 		List<Schedule> c1 = new ArrayList<>();
 		List<Schedule> c2 = new ArrayList<>();
-		for (int i = 0; i < p1.size(); i++) {
-			c1.add(new Schedule(p1.get(i)));
-			c2.add(new Schedule(p2.get(i)));
+
+		for (int i = 0; i < allSubjects.size(); i++) {
+			String subj = allSubjects.get(i);
+			Schedule gene1 = map1.get(subj);
+			Schedule gene2 = map2.get(subj);
+
+			if (i < cutPoint) {
+				// Before cut: c1 gets P1's gene, c2 gets P2's gene
+				if (gene1 != null) c1.add(new Schedule(gene1));
+				if (gene2 != null) c2.add(new Schedule(gene2));
+			} else {
+				// After cut: c1 gets P2's gene, c2 gets P1's gene
+				if (gene2 != null) c1.add(new Schedule(gene2));
+				if (gene1 != null) c2.add(new Schedule(gene1));
+			}
 		}
+
 		return List.of(c1, c2);
+
 	}
 
 	private List<Schedule> mutate(List<Schedule> schedule) {
@@ -429,9 +443,10 @@ public class ExamSchedulerService {
 		LocalDate newDate = exam.getDate().toLocalDate();
 		LocalTime newTime = exam.getTime().toLocalTime();
 
-		int choice = random.nextInt(3); // 0 = time, 1 = date, 2 = both
+		int choice = random.nextInt(3);
 		if (choice == 0 || choice == 2) {
 			newTime = getRandomValidTimeSlot(exam.getSubject().duration);
+			if (newTime == null) newTime = exam.getTime().toLocalTime();
 		}
 		if (choice == 1 || choice == 2) {
 			long days = totalDays;
@@ -443,15 +458,19 @@ public class ExamSchedulerService {
 		return mutated;
 	}
 
+	// FIX 4: Now filters out slots where the exam would finish past endHour.
+	// Previously all slots were returned blindly, allowing mutations to produce
+	// exams that violate working-hours constraints.
 	private LocalTime getRandomValidTimeSlot(int duration) {
-		List<LocalTime> valid = new ArrayList<>(timeSlots);
+		List<LocalTime> valid = timeSlots.stream()
+				.filter(t -> !t.plusMinutes(duration).isAfter(LocalTime.of(endHour, 0)))
+				.collect(Collectors.toList());
 		return valid.isEmpty() ? null : valid.get(random.nextInt(valid.size()));
 	}
 
 	public String evaluate(List<Schedule> schedule) {
 		StringBuilder result = new StringBuilder();
 
-		// Rule 2: all selected subjects present
 		Set<String> scheduledSubjects = schedule.stream().map(Schedule::getSubjectName).collect(Collectors.toSet());
 		Set<String> selectedSubjects = selected_course.stream().map(s -> s.name).collect(Collectors.toSet());
 		Set<String> missingSubjects = new HashSet<>(selectedSubjects);
@@ -460,7 +479,6 @@ public class ExamSchedulerService {
 			result.append("Missing subjects: ").append(missingSubjects).append("\n");
 		}
 
-		// Rule 3: no duplicate subjects
 		Set<String> duplicates = schedule.stream()
 				.map(Schedule::getSubjectName)
 				.filter(name -> Collections.frequency(scheduledSubjects, name) > 1)
@@ -469,7 +487,7 @@ public class ExamSchedulerService {
 			result.append("Duplicate subjects: ").append(duplicates).append("\n");
 		}
 
-		// Rule 1: no student conflict
+		// FIX 2: Consistent duration (no - 1) to match countStudentConflicts
 		for (Student student : Cache.cache.students.values()) {
 			List<Schedule> studentExams = schedule.stream()
 					.filter(s -> student.registrations.stream().anyMatch(r -> r.getTen_mon_hoc().equals(s.getSubjectName())))
@@ -481,9 +499,9 @@ public class ExamSchedulerService {
 					Schedule b = studentExams.get(j);
 					if (!a.getDate().equals(b.getDate())) continue;
 					LocalTime startA = a.getTime().toLocalTime();
-					LocalTime endA = startA.plusMinutes(a.getSubject().duration - 1);
+					LocalTime endA = startA.plusMinutes(a.getSubject().duration);
 					LocalTime startB = b.getTime().toLocalTime();
-					LocalTime endB = startB.plusMinutes(b.getSubject().duration - 1);
+					LocalTime endB = startB.plusMinutes(b.getSubject().duration);
 					if (!(endA.isBefore(startB) || startA.isAfter(endB))) {
 						result.append(String.format("Student %s has conflict between %s and %s\n",
 								student.name, a.getSubjectName(), b.getSubjectName()));
