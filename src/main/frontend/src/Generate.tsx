@@ -26,17 +26,17 @@ function Generate() {
 
   // Default slots must match scheduler defaults (ExamSchedulerService.generateTimeSlots / getDefaultTimes)
   const DEFAULT_SLOTS = ["08:00", "10:00", "13:00", "15:00", "16:30"];
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         // Process subjects to ensure unique name values
-        const uniqueSubjects = [];
+        const uniqueSubjects: any[] = [];
         const uniqueSubjectNames = new Set();
 
-        data.forEach(sub => {
+        data.forEach((sub: any) => {
           if (!uniqueSubjectNames.has(sub.name)) {
             uniqueSubjectNames.add(sub.name);
             uniqueSubjects.push(sub);
@@ -48,7 +48,7 @@ function Generate() {
       .catch((error) => console.error("Error fetching subjects:", error));
   }, []);
 
-  const fetchScheduleWithRetry = async (options, method, retries = 3) => {
+  const fetchScheduleWithRetry = async (options: any, method: string, retries = 3) => {
     for (let i = 0; i < retries; i++) {
       try {
         let path = "generate"
@@ -95,7 +95,15 @@ function Generate() {
     return `${hh}:${mm}`;
   };
 
-  const handleGenerateSchedule = (method) => {
+  // Helper: compare two "HH:mm" strings
+  const compareTimeStrings = (a: string, b: string) => {
+    const [ah, am] = a.split(":").map(Number);
+    const [bh, bm] = b.split(":").map(Number);
+    if (ah !== bh) return ah - bh;
+    return am - bm;
+  };
+
+  const handleGenerateSchedule = (method: string) => {
     setValidationError("");
     if (!dayFrom || !dayTo) {
       setValidationError("Please select both Day From and Day To.");
@@ -110,24 +118,27 @@ function Generate() {
       return;
     }
 
-    // Ensure user selected a timeslot
-    if (!selectedTimeSlot) {
-      setValidationError("Please select a timeslot.");
+    // Ensure user selected at least one timeslot
+    if (!selectedTimeSlots || selectedTimeSlots.length === 0) {
+      setValidationError("Please select at least one timeslot.");
       return;
     }
 
-    // Compute end time as start + 90 minutes
-    const slotStart = selectedTimeSlot;
-    const slotEnd = addMinutesToTimeString(slotStart, 90); // 90 minutes duration
+    // Compute earliest start and latest end for backward compatibility
+    const sortedSlots = [...selectedTimeSlots].sort(compareTimeStrings);
+    const slotStart = sortedSlots[0];
+    const slotEnd = addMinutesToTimeString(sortedSlots[sortedSlots.length - 1], 90); // latest slot end
 
     setIsLoading(true);
     const options = {
       selectedSubjects,
       dayFrom,
       dayTo,
-      // Backend expects hourFrom/hourTo strings in "HH:mm" — keep compatibility
+      // Keep hourFrom/hourTo for compatibility (bounds)
       hourFrom: slotStart,
       hourTo: slotEnd,
+      // New field: selectedTimeSlots (array of starts)
+      selectedTimeSlots: sortedSlots,
       populationSize,
       crossoverRate,
       mutationRate,
@@ -136,7 +147,7 @@ function Generate() {
     };
 
     fetchScheduleWithRetry(options, method)
-      .then((data) => {
+      .then((data: any) => {
         setIsLoading(false);
         if (data.error) {
           alert(`${data.error}`);
@@ -154,7 +165,7 @@ function Generate() {
   };
 
   const handleSelectAll = () => {
-    const allSubjects = subjects.map((subject) => subject.name);
+    const allSubjects = subjects.map((subject: any) => subject.name);
     setSelectedSubjects(allSubjects);
   };
 
@@ -162,7 +173,7 @@ function Generate() {
     setSelectedSubjects([]);
   };
 
-  const requestSort = (key) => {
+  const requestSort = (key: any) => {
     console.log("Sort with: " + key)
     let direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
 
@@ -173,7 +184,7 @@ function Generate() {
     setSortConfig({ key, direction });
   };
 
-  const sortedSchedule = [...schedule].sort((a, b) => {
+  const sortedSchedule = [...schedule].sort((a: any, b: any) => {
     // First, sort by 'ngay_thi'
     if (a.date < b.date) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a.date > b.date) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -235,9 +246,9 @@ function Generate() {
               <select
                 multiple
                 value={selectedSubjects}
-                onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt) => opt.value))}
+                onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt: any) => opt.value))}
               >
-                {subjects.map((sub) => (
+                {subjects.map((sub: any) => (
                   <option key={sub.name} value={sub.name}>
                     {sub.name}
                   </option>
@@ -249,9 +260,8 @@ function Generate() {
             <input type="date" value={dayFrom} onChange={(e) => setDayFrom(e.target.value)} />
             <input type="date" value={dayTo} onChange={(e) => setDayTo(e.target.value)} />
 
-            <label>Timeslot (select start time):</label>
-            <select value={selectedTimeSlot} onChange={(e) => setSelectedTimeSlot(e.target.value)}>
-              <option value="">-- Select timeslot --</option>
+            <label>Timeslots (select one or more start times):</label>
+            <select multiple value={selectedTimeSlots} onChange={(e) => setSelectedTimeSlots([...e.target.selectedOptions].map((opt: any) => opt.value))}>
               {DEFAULT_SLOTS.map((slot) => (
                 <option key={slot} value={slot}>
                   {slot} (ends at {addMinutesToTimeString(slot, 90)})
@@ -259,7 +269,7 @@ function Generate() {
               ))}
             </select>
             <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
-              Each slot is 90 minutes long. The UI will send the selected start time and a computed end time.
+              Each slot is 90 minutes long. You can select multiple slots — the UI sends the selected slots to the backend.
             </div>
 
             <label>Max exams per timeslot:</label>
@@ -354,7 +364,7 @@ function Generate() {
                   </thead>
                   <tbody>
                     {sortedSchedule.length > 0 ? (
-                      sortedSchedule.map((exam, index) => (
+                      sortedSchedule.map((exam: any, index: number) => (
                         <tr key={index}>
                           <td>{exam.subjectName || "N/A"}</td>
                           <td>{exam.date}</td>
