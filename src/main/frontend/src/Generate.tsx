@@ -15,8 +15,6 @@ function Generate() {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [dayFrom, setDayFrom] = useState("");
   const [dayTo, setDayTo] = useState("");
-  const [hourFrom, setHourFrom] = useState("");
-  const [hourTo, setHourTo] = useState("");
   const [populationSize, setPopulationSize] = useState(100);
   const [crossoverRate, setCrossoverRate] = useState(0.8);
   const [mutationRate, setMutationRate] = useState(0.25);
@@ -27,15 +25,19 @@ function Generate() {
   const [showExportForm, setShowExportForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Default slots must match scheduler defaults (ExamSchedulerService.generateTimeSlots / getDefaultTimes)
+  const DEFAULT_SLOTS = ["08:00", "10:00", "13:00", "15:00", "16:30"];
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
+
   useEffect(() => {
     fetch(`${API_BASE}/subjects/list`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         // Process subjects to ensure unique name values
-        const uniqueSubjects = [];
+        const uniqueSubjects: any[] = [];
         const uniqueSubjectNames = new Set();
 
-        data.forEach(sub => {
+        data.forEach((sub: any) => {
           if (!uniqueSubjectNames.has(sub.name)) {
             uniqueSubjectNames.add(sub.name);
             uniqueSubjects.push(sub);
@@ -47,72 +49,97 @@ function Generate() {
       .catch((error) => console.error("Error fetching subjects:", error));
   }, []);
 
-    const fetchScheduleWithRetry = async (options, method, retries = 3) => {
-        for (let i = 0; i < retries; i++) {
-            try {
-                let path = "generate"
-                if (method === '1') {
-                    path = "generate"
-                } else if (method === '2') {
-                    path = "generate2"
-                } else {
-                    throw new Error(`Invalid method: ${method}`)
-                }
-                const response = await fetch(`${API_BASE}/schedule/${path}`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(options),
-                });
-
-                if (!response.ok) {
-                    if (response.status === 500) {
-                        console.error("Internal Server Error, retrying...");
-                        continue; // Retry on 500 Internal Server Error
-                    }
-                    throw new Error(`Error: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                    console.log(data);
-                    return data; // Return successful response data
-                } catch (error) {
-                    if (i === retries - 1) {
-                        throw error; // Throw error if last retry fails
-                }
-            }
+  const fetchScheduleWithRetry = async (options: any, method: string, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        let path = "generate"
+        if (method === '1') {
+          path = "generate"
+        } else if (method === '2') {
+          path = "generate2"
+        } else {
+          throw new Error(`Invalid method: ${method}`)
         }
-    };
+        const response = await fetch(`${API_BASE}/schedule/${path}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(options),
+        });
 
-  const handleGenerateSchedule = (method) => {
+        if (!response.ok) {
+          if (response.status === 500) {
+            console.error("Internal Server Error, retrying...");
+            continue; // Retry on 500 Internal Server Error
+          }
+          throw new Error(`Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(data);
+        return data; // Return successful response data
+      } catch (error) {
+        if (i === retries - 1) {
+          throw error; // Throw error if last retry fails
+        }
+      }
+    }
+  };
+
+  // Helper: add minutes to "HH:mm" string and return "HH:mm" (24h)
+  const addMinutesToTimeString = (timeStr: string, minutesToAdd: number) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    const dt = new Date(Date.UTC(1970, 0, 1, h, m));
+    dt.setUTCMinutes(dt.getUTCMinutes() + minutesToAdd);
+    const hh = String(dt.getUTCHours()).padStart(2, "0");
+    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
+  // Helper: compare two "HH:mm" strings
+  const compareTimeStrings = (a: string, b: string) => {
+    const [ah, am] = a.split(":").map(Number);
+    const [bh, bm] = b.split(":").map(Number);
+    if (ah !== bh) return ah - bh;
+    return am - bm;
+  };
+
+  const handleGenerateSchedule = (method: string) => {
     setValidationError("");
+    if (!dayFrom || !dayTo) {
+      setValidationError("Please select both Day From and Day To.");
+      return;
+    }
+
     const dateFrom = new Date(dayFrom);
     const dateTo = new Date(dayTo);
-    const timeFrom = new Date(`1970-01-01T${hourFrom}:00`);
-    const timeTo = new Date(`1970-01-01T${hourTo}:00`);
 
     if (dateTo < dateFrom) {
       setValidationError("Error: 'Date To' must be later than 'Date From'.");
       return;
     }
 
-    if (dateTo.getTime() === dateFrom.getTime() && timeTo <= timeFrom) {
-      setValidationError("Error: 'Hour To' must be later than 'Hour From' for the same day.");
+    // Ensure user selected at least one timeslot
+    if (!selectedTimeSlots || selectedTimeSlots.length === 0) {
+      setValidationError("Please select at least one timeslot.");
       return;
     }
 
-    if (timeTo <= timeFrom && dateTo > dateFrom) {
-      setValidationError("Error: 'Hour To' must be later than 'Hour From'.");
-      return;
-    }
+    // Compute earliest start and latest end for backward compatibility
+    const sortedSlots = [...selectedTimeSlots].sort(compareTimeStrings);
+    const slotStart = sortedSlots[0];
+    const slotEnd = addMinutesToTimeString(sortedSlots[sortedSlots.length - 1], 90); // latest slot end
 
     setIsLoading(true);
     const options = {
       selectedSubjects,
       dayFrom,
       dayTo,
-      hourFrom,
-      hourTo,
+      // Keep hourFrom/hourTo for compatibility (bounds)
+      hourFrom: slotStart,
+      hourTo: slotEnd,
+      // New field: selectedTimeSlots (array of starts)
+      selectedTimeSlots: sortedSlots,
       populationSize,
       crossoverRate,
       mutationRate,
@@ -122,7 +149,7 @@ function Generate() {
     };
 
     fetchScheduleWithRetry(options, method)
-      .then((data) => {
+      .then((data: any) => {
         setIsLoading(false);
         if (data.error) {
           alert(`${data.error}`);
@@ -140,7 +167,7 @@ function Generate() {
   };
 
   const handleSelectAll = () => {
-    const allSubjects = subjects.map((subject) => subject.name);
+    const allSubjects = subjects.map((subject: any) => subject.name);
     setSelectedSubjects(allSubjects);
   };
 
@@ -148,7 +175,7 @@ function Generate() {
     setSelectedSubjects([]);
   };
 
-  const requestSort = (key) => {
+  const requestSort = (key: any) => {
     console.log("Sort with: " + key)
     let direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
 
@@ -159,7 +186,7 @@ function Generate() {
     setSortConfig({ key, direction });
   };
 
-  const sortedSchedule = [...schedule].sort((a, b) => {
+  const sortedSchedule = [...schedule].sort((a: any, b: any) => {
     // First, sort by 'ngay_thi'
     if (a.date < b.date) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a.date > b.date) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -221,9 +248,9 @@ function Generate() {
               <select
                 multiple
                 value={selectedSubjects}
-                onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt) => opt.value))}
+                onChange={(e) => setSelectedSubjects([...e.target.selectedOptions].map((opt: any) => opt.value))}
               >
-                {subjects.map((sub) => (
+                {subjects.map((sub: any) => (
                   <option key={sub.name} value={sub.name}>
                     {sub.name}
                   </option>
@@ -235,9 +262,17 @@ function Generate() {
             <input type="date" value={dayFrom} onChange={(e) => setDayFrom(e.target.value)} />
             <input type="date" value={dayTo} onChange={(e) => setDayTo(e.target.value)} />
 
-            <label>Time Range:</label>
-            <input type="time" value={hourFrom} onChange={(e) => setHourFrom(e.target.value)} />
-            <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
+            <label>Timeslots (select one or more start times):</label>
+            <select multiple value={selectedTimeSlots} onChange={(e) => setSelectedTimeSlots([...e.target.selectedOptions].map((opt: any) => opt.value))}>
+              {DEFAULT_SLOTS.map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot} (ends at {addMinutesToTimeString(slot, 90)})
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
+              Each slot is 90 minutes long. You can select multiple slots — the UI sends the selected slots to the backend.
+            </div>
 
             <label>Max exams per timeslot:</label>
             <input type="number" value={maxExamPerDay} onChange={(e) => setMaxExamPerDay(Number(e.target.value))} />
@@ -299,28 +334,28 @@ function Generate() {
             ) : (
               <div className="table-container">
                 <div className="result-section">
-                    <div className="result-header">
-                        <h2>Generated Schedule</h2>
-                        {schedule.length > 0 && (
-                        <button
+                  <div className="result-header">
+                    <h2>Generated Schedule</h2>
+                    {schedule.length > 0 && (
+                      <button
                         onClick={() => setShowExportForm(true)}
                         className="export-button"
                         title="Export"
-                        >
+                      >
                         <Download className="w-4 h-4 mr-2" />
                         Export
-                        </button>
-                        )}
-                    </div>
-                    <ExportConfirmationForm
-                      open={showExportForm}
-                      isProcessing={isExporting}
-                      defaultFileName={`exam_schedule_${new Date().toISOString().split('T')[0]}`}
-                      onCancel={() => setShowExportForm(false)}
-                      onSubmit={({ format, fileName }) => {
-                        void handleExportCSV(format, fileName);
-                      }}
-                    />
+                      </button>
+                    )}
+                  </div>
+                  <ExportConfirmationForm
+                    open={showExportForm}
+                    isProcessing={isExporting}
+                    defaultFileName={`exam_schedule_${new Date().toISOString().split('T')[0]}`}
+                    onCancel={() => setShowExportForm(false)}
+                    onSubmit={({ format, fileName }) => {
+                      void handleExportCSV(format, fileName);
+                    }}
+                  />
                 </div>
                 <table>
                   <thead>
@@ -334,7 +369,7 @@ function Generate() {
                   </thead>
                   <tbody>
                     {sortedSchedule.length > 0 ? (
-                      sortedSchedule.map((exam, index) => (
+                      sortedSchedule.map((exam: any, index: number) => (
                         <tr key={index}>
                           <td>{exam.subjectName || "N/A"}</td>
                           <td>{exam.date}</td>
