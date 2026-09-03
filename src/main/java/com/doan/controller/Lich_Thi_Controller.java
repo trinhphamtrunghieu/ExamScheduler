@@ -30,6 +30,10 @@ public class Lich_Thi_Controller {
 		if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
 		}
+		String maxExamPerStudentError = validateMaxExamPerStudentPerDay(options);
+		if (maxExamPerStudentError != null) {
+			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", maxExamPerStudentError));
+		}
 		List<Schedule> result = schedulerService.generateExamSchedule(options);
 		String conflict_check = schedulerService.evaluate(result);
 		if (!conflict_check.isEmpty()) {
@@ -53,6 +57,10 @@ public class Lich_Thi_Controller {
 		//only 5 timeslot. must have better way
 		if (options.getMaxExamPerDay() * 5 * options.getDayDiff() < options.getSelectedSubjects().size()) {
 			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", "Max exam per slot is too small."));
+		}
+		String maxExamPerStudentError = validateMaxExamPerStudentPerDay(options);
+		if (maxExamPerStudentError != null) {
+			return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("error", maxExamPerStudentError));
 		}
 		List<Schedule> schedule = new ArrayList<>();
 		try {
@@ -79,6 +87,35 @@ public class Lich_Thi_Controller {
 			response.put("data", ex.getMessage());
 			return ResponseEntity.badRequest().body(response);
 		}
+	}
+
+	private String validateMaxExamPerStudentPerDay(Lich_Thi_Option options) {
+		int maxExamPerStudentPerDay = Math.max(1, options.getMaxExamPerStudentPerDay());
+		long totalDays = options.getDayDiff();
+
+		Map<String, Integer> selectedSubjectStudentCounts = new HashMap<>();
+		for (com.doan.model.Student student : com.doan.model.Cache.cache.students.values()) {
+			int selectedSubjectCount = (int) student.registrations.stream()
+					.map(com.doan.model.Registration::getTen_mon_hoc)
+					.filter(options.getSelectedSubjects()::contains)
+					.distinct()
+					.count();
+			if (selectedSubjectCount > 0) {
+				selectedSubjectStudentCounts.put(student.id, selectedSubjectCount);
+			}
+		}
+
+		for (int subjectCount : selectedSubjectStudentCounts.values()) {
+			if (subjectCount > maxExamPerStudentPerDay * totalDays) {
+				return String.format(
+						"Cannot generate schedule: at least one student has more than %d exams in the selected range with max %d exams/day.",
+						maxExamPerStudentPerDay * totalDays,
+						maxExamPerStudentPerDay
+				);
+			}
+		}
+
+		return null;
 	}
 
 

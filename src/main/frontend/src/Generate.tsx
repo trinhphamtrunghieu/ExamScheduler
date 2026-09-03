@@ -23,6 +23,7 @@ function Generate() {
   const [maxGenerations, setMaxGenerations] = useState(500);
   const [validationError, setValidationError] = useState("");
   const [maxExamPerDay, setMaxExamPerDay] = useState(5);
+  const [maxExamPerStudentPerDay, setMaxExamPerStudentPerDay] = useState(3);
   const [showExportForm, setShowExportForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -117,6 +118,7 @@ function Generate() {
       mutationRate,
       maxGenerations,
       maxExamPerDay,
+      maxExamPerStudentPerDay,
     };
 
     fetchScheduleWithRetry(options, method)
@@ -238,7 +240,10 @@ function Generate() {
             <input type="time" value={hourTo} onChange={(e) => setHourTo(e.target.value)} />
 
             <label>Max exams per timeslot:</label>
-            <input type="number" onChange={(e) => setMaxExamPerDay(Number(e.target.value))} />
+            <input type="number" value={maxExamPerDay} onChange={(e) => setMaxExamPerDay(Number(e.target.value))} />
+
+            <label>Max exams per student per day:</label>
+            <input type="number" value={maxExamPerStudentPerDay} onChange={(e) => setMaxExamPerStudentPerDay(Number(e.target.value))} min="1" />
 
             <label>Population Size:</label>
             <input
