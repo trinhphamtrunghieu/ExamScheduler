@@ -125,7 +125,7 @@ function Generate() {
       return;
     }
 
-    // Compute earliest start and latest end for backward compatibility
+    // Backend currently applies hour bounds (hourFrom/hourTo) only
     const sortedSlots = [...selectedTimeSlots].sort(compareTimeStrings);
     const slotStart = sortedSlots[0];
     const slotEnd = addMinutesToTimeString(sortedSlots[sortedSlots.length - 1], 90); // latest slot end
@@ -135,11 +135,8 @@ function Generate() {
       selectedSubjects,
       dayFrom,
       dayTo,
-      // Keep hourFrom/hourTo for compatibility (bounds)
       hourFrom: slotStart,
       hourTo: slotEnd,
-      // New field: selectedTimeSlots (array of starts)
-      selectedTimeSlots: sortedSlots,
       populationSize,
       crossoverRate,
       mutationRate,
@@ -262,7 +259,7 @@ function Generate() {
             <input type="date" value={dayFrom} onChange={(e) => setDayFrom(e.target.value)} />
             <input type="date" value={dayTo} onChange={(e) => setDayTo(e.target.value)} />
 
-            <label>Timeslots (select one or more start times):</label>
+            <label>Timeslots (select one or more start times for hour bounds):</label>
             <select multiple value={selectedTimeSlots} onChange={(e) => setSelectedTimeSlots([...e.target.selectedOptions].map((opt: any) => opt.value))}>
               {DEFAULT_SLOTS.map((slot) => (
                 <option key={slot} value={slot}>
@@ -271,7 +268,7 @@ function Generate() {
               ))}
             </select>
             <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
-              Each slot is 90 minutes long. You can select multiple slots — the UI sends the selected slots to the backend.
+              Each slot is 90 minutes long. The backend currently uses only the earliest selected start and latest selected end as scheduling bounds.
             </div>
 
             <label>Max exams per timeslot:</label>
